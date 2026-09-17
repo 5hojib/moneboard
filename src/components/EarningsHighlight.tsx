@@ -34,40 +34,37 @@ export default function EarningsHighlight({
           {/* 1. CURRENT BALANCE */}
           <div
             id="card-current-balance"
-            className="px-3.5 py-2.5 sm:py-3 flex flex-col justify-between"
+            className="px-3 py-2 sm:py-2.5 flex flex-col justify-center"
           >
-            <div className="flex items-center justify-between mb-0.5 text-[11px] text-slate-500 dark:text-neutral-400">
-              <span>Balance</span>
+            <div className="flex items-baseline justify-between text-[11px] text-slate-500 dark:text-neutral-400">
+              <span className="font-medium text-slate-600 dark:text-neutral-300">Balance</span>
+              <span className="text-[10px] text-slate-400 dark:text-neutral-500 font-mono truncate">
+                Life {formatCurrency(effectiveLifetimeEarnings)}
+                {totalWithdrawals > 0 && ` (-${formatCurrency(totalWithdrawals)})`}
+              </span>
             </div>
 
-            <div>
-              <div className="text-lg sm:text-xl font-bold font-mono tracking-tight text-slate-900 dark:text-white tabular-nums leading-tight">
-                {formatCurrency(currentBalance)}
-              </div>
-              <div className="mt-0.5 text-[10px] sm:text-[11px] text-slate-400 dark:text-neutral-500 font-mono truncate">
-                Lifetime {formatCurrency(effectiveLifetimeEarnings)}
-                {totalWithdrawals > 0 && ` · -${formatCurrency(totalWithdrawals)}`}
-              </div>
+            <div className="text-base sm:text-lg font-bold font-mono tracking-tight text-slate-900 dark:text-white tabular-nums leading-snug mt-0.5">
+              {formatCurrency(currentBalance)}
             </div>
           </div>
 
           {/* 2. TODAY'S EARNINGS */}
           <div
             id="card-today-earnings"
-            className="px-3.5 py-2.5 sm:py-3 flex flex-col justify-between"
+            className="px-3 py-2 sm:py-2.5 flex flex-col justify-center"
           >
-            <div className="flex items-center justify-between mb-0.5 text-[11px] text-slate-500 dark:text-neutral-400">
-              <span>Today</span>
-              <span className="font-mono text-[10px] sm:text-[10.5px] text-slate-400 dark:text-neutral-500">{todayDate || 'Today'}</span>
+            <div className="flex items-baseline justify-between text-[11px] text-slate-500 dark:text-neutral-400">
+              <span className="font-medium text-slate-600 dark:text-neutral-300">Today</span>
+              <span className="font-mono text-[10px] text-slate-400 dark:text-neutral-500">{todayDate || 'Today'}</span>
             </div>
 
-            <div>
-              <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white font-mono tracking-tight tabular-nums leading-tight">
+            <div className="flex items-baseline justify-between mt-0.5 gap-2">
+              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-mono tracking-tight tabular-nums leading-snug">
                 {formatCurrency(todayMoney)}
               </div>
-              <div className="flex items-center justify-between mt-0.5 text-[10px] sm:text-[11px] text-slate-400 dark:text-neutral-500 font-mono">
-                <span>{formatCompactNumber(todayImpressions)} imps</span>
-                <span>{todayImpressions > 0 ? `${formatCurrency(todayCpm)} CPM` : '—'}</span>
+              <div className="text-[10px] text-slate-400 dark:text-neutral-500 font-mono tabular-nums text-right shrink-0">
+                {formatCompactNumber(todayImpressions)} imps · {todayImpressions > 0 ? `${formatCurrency(todayCpm)} CPM` : '—'}
               </div>
             </div>
           </div>
@@ -75,20 +72,19 @@ export default function EarningsHighlight({
           {/* 3. YESTERDAY'S EARNINGS */}
           <div
             id="card-yesterday-earnings"
-            className="px-3.5 py-2.5 sm:py-3 flex flex-col justify-between"
+            className="px-3 py-2 sm:py-2.5 flex flex-col justify-center"
           >
-            <div className="flex items-center justify-between mb-0.5 text-[11px] text-slate-500 dark:text-neutral-400">
-              <span>Yesterday</span>
-              <span className="font-mono text-[10px] sm:text-[10.5px] text-slate-400 dark:text-neutral-500">{yesterdayDate || 'Yesterday'}</span>
+            <div className="flex items-baseline justify-between text-[11px] text-slate-500 dark:text-neutral-400">
+              <span className="font-medium text-slate-600 dark:text-neutral-300">Yesterday</span>
+              <span className="font-mono text-[10px] text-slate-400 dark:text-neutral-500">{yesterdayDate || 'Yesterday'}</span>
             </div>
 
-            <div>
-              <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white font-mono tracking-tight tabular-nums leading-tight">
+            <div className="flex items-baseline justify-between mt-0.5 gap-2">
+              <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-mono tracking-tight tabular-nums leading-snug">
                 {formatCurrency(yesterdayMoney)}
               </div>
-              <div className="flex items-center justify-between mt-0.5 text-[10px] sm:text-[11px] text-slate-400 dark:text-neutral-500 font-mono">
-                <span>{formatCompactNumber(yesterdayImpressions)} imps</span>
-                <span>{formatCurrency(yesterdayCpm)} CPM</span>
+              <div className="text-[10px] text-slate-400 dark:text-neutral-500 font-mono tabular-nums text-right shrink-0">
+                {formatCompactNumber(yesterdayImpressions)} imps · {formatCurrency(yesterdayCpm)} CPM
               </div>
             </div>
           </div>
@@ -97,4 +93,3 @@ export default function EarningsHighlight({
     </div>
   );
 }
-
