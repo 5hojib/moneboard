@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import Header from './components/Header';
 import EarningsHighlight from './components/EarningsHighlight';
 import KpiGrid from './components/KpiGrid';
@@ -18,57 +19,35 @@ import {
   calculateCtr,
   calculateFillRate
 } from './utils/formatters';
+import { getHealth, getStatistics, HealthData } from './api/client';
+import { buildCacheKey, readCache, writeCache } from './utils/apiCache';
 
-// Helper to safely fetch JSON and never throw on HTML/502/non-JSON responses
+const STATS_CACHE_TTL = 15 * 60;
+const LIFETIME_CACHE_TTL = 60 * 60;
+const SNAPSHOT_KEY = 'boot_snapshot';
+const SNAPSHOT_TTL = 24 * 60 * 60;
 
-async function safeFetchJson<T = any>(
-  url: string,
-  options?: RequestInit
-): Promise<{ ok: boolean; data?: T; error?: string }> {
-  try {
-    const res = await fetch(url, options);
-    const text = await res.text();
-    const trimmed = text.trim();
+// Network-first fetch with a localStorage cache fallback.
+// Serves fresh data when online and transparently falls back to cached
+// data when the network is unreachable (offline / slow start support).
+async function cachedStatistics<T>(
+  query: Parameters<typeof getStatistics>[0],
+  ttlSeconds = STATS_CACHE_TTL
+): Promise<{ ok: boolean; data?: T; error?: string; fromCache?: boolean }> {
+  const key = buildCacheKey('stats', JSON.stringify(query));
+  const hit = readCache<T>(key);
+  const res = await getStatistics(query);
 
-    if (trimmed.startsWith('<') || trimmed.toLowerCase().includes('<!doctype') || trimmed.toLowerCase().includes('<html')) {
-      const titleMatch = text.match(/<title[^>]*>([^<]+)<\/title>/i);
-      const title = titleMatch ? titleMatch[1].trim() : `HTTP ${res.status}`;
-      return {
-        ok: false,
-        error: `Server returned non-JSON page (${title}). The server may be restarting or Monetag API may be momentarily unreachable.`
-      };
-    }
-
-    if (!trimmed) {
-      return {
-        ok: res.ok,
-        error: res.ok ? undefined : `Empty response from server (HTTP ${res.status})`
-      };
-    }
-
-    try {
-      const json = JSON.parse(trimmed);
-      if (!res.ok || json.error) {
-        const errorMsg = json.error || json.message || `Request failed with status ${res.status}`;
-        return {
-          ok: false,
-          error: typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg),
-          data: json
-        };
-      }
-      return { ok: true, data: json };
-    } catch {
-      return {
-        ok: false,
-        error: `Invalid JSON response received (HTTP ${res.status})`
-      };
-    }
-  } catch (err: any) {
-    return {
-      ok: false,
-      error: err.message || 'Network request failed'
-    };
+  if (res.ok && res.data !== undefined) {
+    writeCache(key, res.data as T, ttlSeconds);
+    return { ok: true, data: res.data as T, fromCache: false };
   }
+
+  if (hit) {
+    return { ok: true, data: hit.data, error: res.error, fromCache: true };
+  }
+
+  return { ok: false, error: res.error, fromCache: false };
 }
 
 export default function App() {
@@ -96,47 +75,38 @@ export default function App() {
   // Loading & error
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showingCached, setShowingCached] = useState(false);
 
-  // Request headers helper
-  const getHeaders = useCallback(() => {
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    };
+  // Apply health/env config to state
+  const setHealthState = useCallback((data: HealthData) => {
+    setHasKey(Boolean(data.hasKey));
+    setMaskedKey(data.maskedKey);
+    if (typeof data.totalWithdrawals === 'number') {
+      setTotalWithdrawals(data.totalWithdrawals);
+    }
   }, []);
 
   // Load lifetime balance & recent stats
   const loadInitialCollections = useCallback(async () => {
     try {
-      const headers = getHeaders();
-
       // Check health & env config
-      const healthRes = await safeFetchJson<{
-        hasKey: boolean;
-        maskedKey: string | null;
-        totalWithdrawals?: number;
-      }>('/api/health', { headers });
+      const healthRes = await getHealth();
       if (healthRes.ok && healthRes.data) {
-        setHasKey(Boolean(healthRes.data.hasKey));
-        setMaskedKey(healthRes.data.maskedKey);
-        if (typeof healthRes.data.totalWithdrawals === 'number') {
-          setTotalWithdrawals(healthRes.data.totalWithdrawals);
-        }
+        setHealthState(healthRes.data);
       }
 
       // Fetch full lifetime statistics for total lifetime earnings
       const today = getISODateString(new Date());
-      const lifetimeRes = await safeFetchJson<{ result: StatItem[] }>('/api/statistics', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+      const lifetimeRes = await cachedStatistics<{ result: StatItem[] }>(
+        {
           date_from: '2024-01-01',
           date_to: today,
           page: 1,
           page_size: 500,
           group_by: ['date_time']
-        })
-      });
+        },
+        LIFETIME_CACHE_TTL
+      );
 
       if (lifetimeRes.ok && Array.isArray(lifetimeRes.data?.result)) {
         const sum = lifetimeRes.data.result.reduce((acc: number, row: any) => {
@@ -148,49 +118,48 @@ export default function App() {
     } catch (err: any) {
       console.warn('Initial collections loaded with non-fatal warning:', err);
     }
-  }, [getHeaders]);
+  }, [setHealthState]);
 
   // Fetch statistics according to current date filters
   const fetchStatistics = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const headers = getHeaders();
-
       // Refresh health & env config
-      safeFetchJson<{
-        hasKey: boolean;
-        maskedKey: string | null;
-        totalWithdrawals?: number;
-      }>('/api/health', { headers }).then(res => {
+      getHealth().then(res => {
         if (res.ok && res.data) {
-          setHasKey(Boolean(res.data.hasKey));
-          setMaskedKey(res.data.maskedKey);
-          if (typeof res.data.totalWithdrawals === 'number') {
-            setTotalWithdrawals(res.data.totalWithdrawals);
-          }
+          setHealthState(res.data);
         }
       });
 
       // Fetch daily time-series statistics
-      const dailyRes = await safeFetchJson<{ result: StatItem[]; error?: string }>('/api/statistics', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+      const dailyRes = await cachedStatistics<{ result: StatItem[] }>(
+        {
           date_from: dateFrom,
           date_to: dateTo,
           page: 1,
           page_size: 500,
           group_by: ['date_time']
-        })
-      });
+        },
+        STATS_CACHE_TTL
+      );
 
       if (!dailyRes.ok) {
         throw new Error(dailyRes.error || 'Failed to fetch statistics from Monetag');
       }
 
+      setShowingCached(Boolean(dailyRes.fromCache));
+
       const rows: StatItem[] = Array.isArray(dailyRes.data?.result) ? dailyRes.data.result : [];
       setDailyStats(rows);
+
+      if (!dailyRes.fromCache) {
+        writeCache(
+          SNAPSHOT_KEY,
+          { dailyStats: rows, lastUpdated: new Date().toISOString() },
+          SNAPSHOT_TTL
+        );
+      }
 
       // If dailyStats contains recent records, keep recentStats updated
       if (rows.length > 0) {
@@ -215,7 +184,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [dateFrom, dateTo, getHeaders]);
+  }, [dateFrom, dateTo, setHealthState]);
 
   // Load everything on mount and when API key changes
   useEffect(() => {
@@ -225,6 +194,21 @@ export default function App() {
   useEffect(() => {
     fetchStatistics();
   }, [fetchStatistics]);
+
+  // Hydrate with the last known snapshot so the app renders instantly
+  // (and works offline) before the network round-trip completes.
+  useEffect(() => {
+    const snap = readCache<{ dailyStats: StatItem[]; lastUpdated: string }>(SNAPSHOT_KEY);
+    if (snap?.data) {
+      if (Array.isArray(snap.data.dailyStats)) {
+        setDailyStats(snap.data.dailyStats);
+        setShowingCached(true);
+      }
+      if (snap.data.lastUpdated) {
+        setLastUpdated(new Date(snap.data.lastUpdated));
+      }
+    }
+  }, []);
 
   // Handle Date Preset Changes
   const handleDatePresetChange = (preset: DatePreset) => {
@@ -356,6 +340,16 @@ export default function App() {
           </div>
         )}
 
+        {/* Offline Cached Data Indicator */}
+        {showingCached && !error && (
+          <div className="p-2.5 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex items-center justify-between gap-3 text-amber-800 dark:text-amber-200 text-[11px] font-mono">
+            <span>
+              Offline — showing cached data.
+              {lastUpdated && ` Last synced ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
+            </span>
+          </div>
+        )}
+
         {/* Highlights */}
         <EarningsHighlight
           currentBalance={currentBalance}
@@ -371,33 +365,49 @@ export default function App() {
           yesterdayDate={yesterdayStr}
         />
 
-        {/* Initial Loading */}
-        {isLoading && dailyStats.length === 0 && !error ? (
-          <div className="bg-white dark:bg-black rounded-lg border border-slate-200 dark:border-neutral-800 p-12 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
-            Loading analytics...
-          </div>
-        ) : (
-          <>
-            {/* Period KPI Cards */}
-            <KpiGrid
-              stats={aggregatedTotals}
-              selectedDaysCount={aggregatedTotals.activeDays}
-            />
-
-            {/* Overview Section */}
-            <div className="space-y-4">
-              {/* Charts Section */}
-              <ChartsSection stats={dailyStats} />
-
-              {/* Daily Breakdown Table */}
-              <DailyStatsTable
-                stats={dailyStats}
-                dateFrom={dateFrom}
-                dateTo={dateTo}
+        {/* Initial Loading / Content with smooth transitions */}
+        <AnimatePresence mode="wait" initial={false}>
+          {isLoading && dailyStats.length === 0 && !error ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="bg-white dark:bg-black rounded-lg border border-slate-200 dark:border-neutral-800 p-12 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono"
+            >
+              Loading analytics...
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="space-y-4"
+            >
+              {/* Period KPI Cards */}
+              <KpiGrid
+                stats={aggregatedTotals}
+                selectedDaysCount={aggregatedTotals.activeDays}
               />
-            </div>
-          </>
-        )}
+
+              {/* Overview Section */}
+              <div className="space-y-4">
+                {/* Charts Section */}
+                <ChartsSection stats={dailyStats} />
+
+                {/* Daily Breakdown Table */}
+                <DailyStatsTable
+                  stats={dailyStats}
+                  dateFrom={dateFrom}
+                  dateTo={dateTo}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Footer */}

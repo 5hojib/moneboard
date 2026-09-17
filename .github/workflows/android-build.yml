@@ -1,0 +1,94 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, apk]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      monetag_api_key:
+        description: 'Monetag API key to bake into the APK (optional, defaults to the bundled key)'
+        required: false
+        type: string
+      total_withdrawals:
+        description: 'Total withdrawn USD for the balance calculation (optional, default 0)'
+        required: false
+        type: number
+      release:
+        description: 'Also create a GitHub Release with the APK'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets
+        run: npm run build:android
+        env:
+          VITE_MONETAG_API_KEY: ${{ inputs.monetag_api_key || secrets.MONETAG_API_KEY || '' }}
+          VITE_MONETAG_TOTAL_WITHDRAWALS: ${{ inputs.total_withdrawals || secrets.MONETAG_TOTAL_WITHDRAWALS || '' }}
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Compute app version
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VER="${GITHUB_REF_NAME#v}"
+            CODE="${{ github.run_number }}"
+          else
+            VER="1.0.0-build.${{ github.run_number }}"
+            CODE="${{ github.run_number }}"
+          fi
+          echo "version_name=$VER" >> "$GITHUB_OUTPUT"
+          echo "version_code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "apk_name=Monetag-Publisher-$VER.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK (debug-signed, no credentials needed)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+
+      - name: Upload APK to workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.apk_name }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Publish APK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || inputs.release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android/app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true
