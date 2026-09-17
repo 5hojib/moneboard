@@ -1,0 +1,6 @@
+{
+  "name": "Monetag Publisher Dashboard",
+  "description": "Comprehensive statistics dashboard for Monetag publishers with earnings, CPM, impressions, CTR, daily breakdowns, and country geographic analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
