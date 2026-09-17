@@ -411,7 +411,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-neutral-900 py-4 mt-8">
+      <footer className="border-t border-slate-200 dark:border-neutral-900 pt-4 mt-8" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-slate-400 dark:text-neutral-500">
           <span>Monetag SSP v5</span>
           <span className="font-mono text-[11px]">EST</span>

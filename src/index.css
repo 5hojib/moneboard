@@ -34,6 +34,11 @@
     transform: scale(0.97);
   }
 
+  /* Keep the sticky header below Android/iOS display cutouts & status bars */
+  #dashboard-header {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
   /* Respect users who prefer reduced motion */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
