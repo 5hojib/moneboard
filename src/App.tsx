@@ -356,13 +356,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Loading indicator */}
-        {isLoading && dailyStats.length > 0 && (
-          <div className="py-1 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
-            Updating data...
-          </div>
-        )}
-
         {/* Highlights */}
         <EarningsHighlight
           currentBalance={currentBalance}

@@ -5,8 +5,6 @@ import {
   Area,
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -36,7 +34,6 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
   const axisColor = isDark ? '#525252' : '#94a3b8';
   const strokeColor = isDark ? '#38bdf8' : '#0f172a';
   const fillColor = isDark ? 'rgba(56, 189, 248, 0.08)' : '#f1f5f9';
-  const barColor = isDark ? '#38bdf8' : '#0f172a';
   const yAxisLineColor = isDark ? '#38bdf8' : '#0284c7';
   const xAxisLineColor = isDark ? '#404040' : '#cbd5e1';
 
@@ -316,7 +313,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
               />
             </AreaChart>
           ) : (
-            <BarChart
+            <LineChart
               data={chartData}
               margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
               onClick={handleChartInteraction}
@@ -347,8 +344,16 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
                   />
                 </>
               )}
-              <Bar dataKey="clicks" fill={barColor} radius={[2, 2, 0, 0]} name="Clicks" />
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="clicks"
+                stroke={strokeColor}
+                strokeWidth={1.5}
+                dot={false}
+                name="Clicks"
+                activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
+              />
+            </LineChart>
           )}
         </ResponsiveContainer>
       </div>
