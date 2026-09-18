@@ -24,17 +24,17 @@ export default function FilterBar({
 
   return (
     <div id="filter-bar-container" className="flex flex-wrap items-center justify-between gap-3 py-1 text-xs text-slate-600 dark:text-neutral-400">
-      {/* Date Presets */}
-      <div className="flex items-center gap-1">
+      {/* Date Presets - segmented control */}
+      <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-white dark:bg-black border border-slate-200 dark:border-neutral-800 shadow-sm">
         {presets.map((p) => (
           <button
             key={p.id}
             id={`preset-${p.id}`}
             onClick={() => onDatePresetChange(p.id)}
-            className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer select-none ${
+            className={`px-2.5 sm:px-3 py-1 text-xs rounded-full transition-colors cursor-pointer select-none ${
               datePreset === p.id
-                ? 'bg-slate-900 dark:bg-white text-white dark:text-black font-semibold'
-                : 'text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-neutral-900'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-black font-semibold shadow-sm'
+                : 'text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             {p.label}
@@ -51,7 +51,7 @@ export default function FilterBar({
               type="date"
               value={dateFrom}
               onChange={(e) => onCustomDateChange(e.target.value, dateTo)}
-              className="bg-white dark:bg-black border border-slate-200 dark:border-neutral-800 text-slate-800 dark:text-neutral-200 text-xs rounded px-2 py-0.5 focus:outline-none"
+              className="bg-white dark:bg-black border border-slate-200 dark:border-neutral-800 text-slate-800 dark:text-neutral-200 text-xs rounded-lg px-2 py-0.5 focus:outline-none"
             />
             <span>–</span>
             <input
@@ -59,7 +59,7 @@ export default function FilterBar({
               type="date"
               value={dateTo}
               onChange={(e) => onCustomDateChange(dateFrom, e.target.value)}
-              className="bg-white dark:bg-black border border-slate-200 dark:border-neutral-800 text-slate-800 dark:text-neutral-200 text-xs rounded px-2 py-0.5 focus:outline-none"
+              className="bg-white dark:bg-black border border-slate-200 dark:border-neutral-800 text-slate-800 dark:text-neutral-200 text-xs rounded-lg px-2 py-0.5 focus:outline-none"
             />
           </div>
         ) : (

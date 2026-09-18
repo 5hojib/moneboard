@@ -142,7 +142,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
 
   if (chartData.length === 0) {
     return (
-      <div className="bg-white dark:bg-black rounded-lg border border-slate-200 dark:border-neutral-800 p-6 text-center text-xs text-slate-500 dark:text-neutral-400">
+      <div className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-sm p-6 text-center text-xs text-slate-500 dark:text-neutral-400">
         No statistics available for the selected period.
       </div>
     );
@@ -158,22 +158,22 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
   return (
     <div
       id="charts-section"
-      className="w-full bg-white dark:bg-black rounded-lg border border-slate-200 dark:border-neutral-800 p-4 transition-colors select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none [&_*]:outline-none [&_*]:focus:outline-none [&_*]:focus:ring-0 [&_svg]:outline-none"
+      className="w-full bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-sm p-4 transition-colors select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none [&_*]:outline-none [&_*]:focus:outline-none [&_*]:focus:ring-0 [&_svg]:outline-none"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xs font-semibold text-slate-900 dark:text-neutral-100 uppercase tracking-wider select-none">Trend</h3>
 
         {/* Metric Selector */}
-        <div className="flex items-center gap-1 select-none">
+        <div className="flex items-center gap-1 p-0.5 rounded-full bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 select-none">
           {metrics.map(m => (
             <button
               key={m.id}
               id={`chart-metric-${m.id}`}
               onClick={() => handleMetricChange(m.id)}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none ${
+              className={`px-2.5 py-1 text-xs rounded-full transition-colors cursor-pointer select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none ${
                 activeMetric === m.id
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-black font-semibold'
+                  ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-sm'
                   : 'text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}

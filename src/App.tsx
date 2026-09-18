@@ -312,14 +312,14 @@ export default function App() {
   );
 
   const loadingPanel = (
-    <div className="bg-white dark:bg-black rounded-lg border border-slate-200 dark:border-neutral-800 p-12 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
+    <div className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 p-12 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
       Loading analytics...
     </div>
   );
 
   const isEmpty = dailyStats.length === 0 && !isLoading;
   const emptyPanel = (
-    <div className="bg-white dark:bg-black rounded-lg border border-slate-200 dark:border-neutral-800 p-10 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
+    <div className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 p-10 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
       No data in the selected range.
     </div>
   );
@@ -341,7 +341,7 @@ export default function App() {
         >
           {/* Error Notification Banner */}
           {error && tab !== 'settings' && (
-            <div className="p-3 rounded bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 flex items-center justify-between gap-3 text-rose-800 dark:text-rose-200 text-xs">
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 flex items-center justify-between gap-3 text-rose-800 dark:text-rose-200 text-xs">
               <div>
                 <span className="font-semibold">Error: </span>
                 <span className="font-mono text-[11px]">{error}</span>
@@ -357,7 +357,7 @@ export default function App() {
 
           {/* Offline Cached Data Indicator */}
           {showingCached && !error && tab !== 'settings' && (
-            <div className="p-2.5 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex items-center justify-between gap-3 text-amber-800 dark:text-amber-200 text-[11px] font-mono">
+            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex items-center justify-between gap-3 text-amber-800 dark:text-amber-200 text-[11px] font-mono">
               <span>
                 Offline — showing cached data.
                 {lastUpdated && ` Last synced ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
