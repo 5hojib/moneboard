@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useSettingsContext } from './SettingsContext';
 
-type ResolvedTheme = 'light' | 'dark';
+export type ResolvedTheme = 'light' | 'dark';
 
 interface ThemeContextType {
   resolvedTheme: ResolvedTheme;
@@ -14,31 +15,31 @@ function getSystemTheme(): ResolvedTheme {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(getSystemTheme);
+  // App theme follows the setting chosen in the Settings page.
+  // 'system' tracks the OS light/dark preference in real time.
+  const { settings } = useSettingsContext();
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
 
-  // Always follow the OS color scheme so the app matches the system theme.
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const applyTheme = () => {
-      const activeTheme: ResolvedTheme = mediaQuery.matches ? 'dark' : 'light';
-      setResolvedTheme(activeTheme);
-
-      const root = document.documentElement;
-      if (activeTheme === 'dark') {
-        root.classList.add('dark');
-        root.style.colorScheme = 'dark';
-      } else {
-        root.classList.remove('dark');
-        root.style.colorScheme = 'light';
-      }
-    };
-
-    applyTheme();
-
-    mediaQuery.addEventListener('change', applyTheme);
-    return () => mediaQuery.removeEventListener('change', applyTheme);
+    const onChange = () => setSystemTheme(mediaQuery.matches ? 'dark' : 'light');
+    mediaQuery.addEventListener('change', onChange);
+    return () => mediaQuery.removeEventListener('change', onChange);
   }, []);
+
+  const resolvedTheme: ResolvedTheme =
+    settings.themeMode === 'system' ? systemTheme : settings.themeMode;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (resolvedTheme === 'dark') {
+      root.classList.add('dark');
+      root.style.colorScheme = 'dark';
+    } else {
+      root.classList.remove('dark');
+      root.style.colorScheme = 'light';
+    }
+  }, [resolvedTheme]);
 
   return (
     <ThemeContext.Provider value={{ resolvedTheme }}>

@@ -23,3 +23,28 @@ export const MONETAG_BASE_URL = 'https://api.monetag.com/v5';
 // hosted backend / separate API base URL. The web build keeps using the
 // same-origin /api proxy untouched.
 export const USE_DIRECT_MONETAG = IS_NATIVE;
+
+// Runtime-overridable settings persisted by the in-app Settings page.
+// Falls back to the value baked into the build when the user never changed it.
+export const SETTINGS_STORAGE_KEY = 'monetag_settings_v1';
+
+function readStored<T>(prop: string): T | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return undefined;
+    return (JSON.parse(raw) as Record<string, unknown>)[prop] as T | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function getApiKey(): string {
+  const stored = readStored<string>('apiKey');
+  return typeof stored === 'string' && stored.trim() ? stored : MONETAG_API_KEY;
+}
+
+export function getTotalWithdrawals(): number {
+  const stored = Number(readStored<number>('totalWithdrawals'));
+  return stored >= 0 ? stored : MONETAG_TOTAL_WITHDRAWALS;
+}

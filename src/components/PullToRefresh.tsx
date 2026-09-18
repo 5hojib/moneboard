@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { RefreshCw } from 'lucide-react';
 
 interface PullToRefreshProps {
@@ -12,7 +12,7 @@ interface PullToRefreshProps {
 export default function PullToRefresh({
   onRefresh,
   threshold = 64,
-  maxPull = 110,
+  maxPull = 96,
   children,
 }: PullToRefreshProps) {
   const [pull, setPull] = useState(0);
@@ -35,7 +35,7 @@ export default function PullToRefresh({
   useEffect(() => {
     const touchStart = (e: TouchEvent) => {
       if (refreshingRef.current) return;
-      if (window.scrollY <= 0) {
+      if (window.scrollY <= 0 && e.touches[0].clientY > 0) {
         startYRef.current = e.touches[0].clientY;
       } else {
         startYRef.current = null;
@@ -52,7 +52,7 @@ export default function PullToRefresh({
       }
 
       e.preventDefault();
-      setPullValue(Math.min(maxPull, delta * 0.5));
+      setPullValue(Math.min(maxPull, delta * 0.45));
     };
 
     const touchEnd = () => {
@@ -67,6 +67,7 @@ export default function PullToRefresh({
         Promise.resolve(result).finally(() => {
           refreshingRef.current = false;
           setRefreshing(false);
+          setPullValue(0);
         });
       } else {
         setPullValue(0);
@@ -83,46 +84,39 @@ export default function PullToRefresh({
       window.removeEventListener('touchend', touchEnd);
       window.removeEventListener('touchcancel', touchEnd);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const showIndicator = pull > 0 || refreshing;
-  const releasing = pull >= threshold;
-  const rotation = Math.min(1, pull / threshold) * 180;
+  const progress = Math.min(1, pull / threshold);
+  const rotationDeg = progress * 180;
 
   return (
     <div className="relative">
-      {/* Pull-to-refresh indicator */}
-      {showIndicator && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className="fixed top-0 left-0 right-0 z-40 flex justify-center pointer-events-none"
-          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-        >
-          <div className="mt-2 h-9 px-3.5 rounded-full bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 shadow-lg flex items-center gap-2 font-mono text-[11px] text-slate-500 dark:text-neutral-300 select-none">
-            <RefreshCw
-              className={`w-3.5 h-3.5 shrink-0 ${refreshing ? 'animate-spin' : ''}`}
-              style={refreshing ? undefined : { transform: `rotate(${rotation}deg)` }}
-            />
-            {refreshing ? 'Syncing...' : releasing ? 'Release to refresh' : 'Pull to refresh'}
-          </div>
-        </motion.div>
-      )}
+      {/* Facebook-style pull-to-refresh indicator: a spinner that drops in from
+          the top and retracts once the refresh completes. Content never moves. */}
+      <AnimatePresence>
+        {(pull > 0 || refreshing) && (
+          <motion.div
+            initial={{ opacity: 0, y: -24 }}
+            animate={{
+              opacity: refreshing ? 1 : Math.max(0.3, progress),
+              y: refreshing || pull > 0 ? 0 : -24,
+            }}
+            exit={{ opacity: 0, y: -24 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="fixed top-0 left-0 right-0 z-40 flex justify-center pointer-events-none"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 64px)' }}
+          >
+            <div className="h-10 w-10 rounded-full bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 shadow-lg flex items-center justify-center">
+              <RefreshCw
+                className={`w-5 h-5 text-slate-600 dark:text-neutral-300 ${refreshing ? 'animate-spin' : ''}`}
+                style={refreshing ? undefined : { transform: `rotate(${rotationDeg}deg)` }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Sliding content */}
-      <motion.div
-        animate={{ y: pull }}
-        transition={
-          refreshing
-            ? { type: 'spring', stiffness: 260, damping: 28 }
-            : { type: 'spring', stiffness: 320, damping: 30 }
-        }
-      >
-        {children}
-      </motion.div>
+      {children}
     </div>
   );
 }

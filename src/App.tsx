@@ -1,12 +1,15 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import Header from './components/Header';
 import PullToRefresh from './components/PullToRefresh';
+import BottomNav, { TabId } from './components/BottomNav';
 import EarningsHighlight from './components/EarningsHighlight';
 import KpiGrid from './components/KpiGrid';
 import ChartsSection from './components/ChartsSection';
 import FilterBar from './components/FilterBar';
 import DailyStatsTable from './components/DailyStatsTable';
+import SettingsPage from './components/SettingsPage';
+import { useSettingsContext } from './context/SettingsContext';
 
 import {
   StatItem,
@@ -20,7 +23,7 @@ import {
   calculateCtr,
   calculateFillRate
 } from './utils/formatters';
-import { getHealth, getStatistics, HealthData } from './api/client';
+import { getStatistics } from './api/client';
 import { buildCacheKey, readCache, writeCache } from './utils/apiCache';
 
 const STATS_CACHE_TTL = 15 * 60;
@@ -52,6 +55,11 @@ async function cachedStatistics<T>(
 }
 
 export default function App() {
+  const { settings } = useSettingsContext();
+
+  // Bottom navigation
+  const [tab, setTab] = useState<TabId>('home');
+
   // App state - Default to 7 days stats
   const [datePreset, setDatePreset] = useState<DatePreset>('7d');
   const initialDates = useMemo(() => getDateRangeForPreset('7d'), []);
@@ -61,16 +69,13 @@ export default function App() {
   // Statistics data
   const [dailyStats, setDailyStats] = useState<StatItem[]>([]);
 
-  // Account overview / balance tracking: Lifetime Earnings minus Total Withdrawals (env only)
+  // Account overview / balance tracking: Lifetime Earnings minus Total Withdrawals
   const [apiLifetimeEarnings, setApiLifetimeEarnings] = useState<number>(0);
-  const [totalWithdrawals, setTotalWithdrawals] = useState<number>(0);
 
   // Dedicated recent stats cache (Today & Yesterday) so they persist even when switching ranges
   const [recentStats, setRecentStats] = useState<StatItem[]>([]);
 
-  // Health and metadata
-  const [hasKey, setHasKey] = useState(true);
-  const [maskedKey, setMaskedKey] = useState<string | null>(null);
+  // Metadata
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Loading & error
@@ -78,25 +83,16 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [showingCached, setShowingCached] = useState(false);
 
-  // Apply health/env config to state
-  const setHealthState = useCallback((data: HealthData) => {
-    setHasKey(Boolean(data.hasKey));
-    setMaskedKey(data.maskedKey);
-    if (typeof data.totalWithdrawals === 'number') {
-      setTotalWithdrawals(data.totalWithdrawals);
-    }
-  }, []);
+  // Settings-driven account info
+  const hasKey = settings.apiKey.trim().length > 0;
+  const maskedKey = hasKey
+    ? `${settings.apiKey.slice(0, 4)}...${settings.apiKey.slice(-4)}`
+    : null;
+  const totalWithdrawals = settings.totalWithdrawals;
 
   // Load lifetime balance & recent stats
   const loadInitialCollections = useCallback(async () => {
     try {
-      // Check health & env config
-      const healthRes = await getHealth();
-      if (healthRes.ok && healthRes.data) {
-        setHealthState(healthRes.data);
-      }
-
-      // Fetch full lifetime statistics for total lifetime earnings
       const today = getISODateString(new Date());
       const lifetimeRes = await cachedStatistics<{ result: StatItem[] }>(
         {
@@ -119,20 +115,13 @@ export default function App() {
     } catch (err: any) {
       console.warn('Initial collections loaded with non-fatal warning:', err);
     }
-  }, [setHealthState]);
+  }, []);
 
   // Fetch statistics according to current date filters
   const fetchStatistics = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Refresh health & env config
-      getHealth().then(res => {
-        if (res.ok && res.data) {
-          setHealthState(res.data);
-        }
-      });
-
       // Fetch daily time-series statistics
       const dailyRes = await cachedStatistics<{ result: StatItem[] }>(
         {
@@ -185,9 +174,9 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [dateFrom, dateTo, setHealthState]);
+  }, [dateFrom, dateTo]);
 
-  // Load everything on mount and when API key changes
+  // Load everything on mount
   useEffect(() => {
     loadInitialCollections();
   }, [loadInitialCollections]);
@@ -195,6 +184,16 @@ export default function App() {
   useEffect(() => {
     fetchStatistics();
   }, [fetchStatistics]);
+
+  // Re-fetch with fresh credentials whenever the API key changes in Settings
+  const prevKeyRef = useRef(settings.apiKey);
+  useEffect(() => {
+    if (prevKeyRef.current !== settings.apiKey) {
+      prevKeyRef.current = settings.apiKey;
+      loadInitialCollections();
+      fetchStatistics();
+    }
+  }, [settings.apiKey, fetchStatistics, loadInitialCollections]);
 
   // Hydrate with the last known snapshot so the app renders instantly
   // (and works offline) before the network round-trip completes.
@@ -291,17 +290,39 @@ export default function App() {
   const yesterdayImpressions = yesterdayStat ? (parseInt(String(yesterdayStat.impressions), 10) || 0) : 0;
   const yesterdayCpm = calculateCpm(yesterdayMoney, yesterdayImpressions);
 
-  // Effective Lifetime Earnings (custom override or API sum)
   // Effective Lifetime Earnings (computed from API lifetime statistics or period totals)
   const effectiveLifetimeEarnings = useMemo(() => {
     if (apiLifetimeEarnings > 0) return apiLifetimeEarnings;
     return aggregatedTotals.totalMoney;
   }, [apiLifetimeEarnings, aggregatedTotals.totalMoney]);
 
-  // Current Balance = Total Lifetime Earnings - Total Withdrawals (configured via server env)
+  // Current Balance = Total Lifetime Earnings - Total Withdrawals (configurable in Settings)
   const currentBalance = useMemo(() => {
     return effectiveLifetimeEarnings - totalWithdrawals;
   }, [effectiveLifetimeEarnings, totalWithdrawals]);
+
+  const filterBar = (
+    <FilterBar
+      datePreset={datePreset}
+      onDatePresetChange={handleDatePresetChange}
+      dateFrom={dateFrom}
+      dateTo={dateTo}
+      onCustomDateChange={handleCustomDateChange}
+    />
+  );
+
+  const loadingPanel = (
+    <div className="bg-white dark:bg-black rounded-lg border border-slate-200 dark:border-neutral-800 p-12 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
+      Loading analytics...
+    </div>
+  );
+
+  const isEmpty = dailyStats.length === 0 && !isLoading;
+  const emptyPanel = (
+    <div className="bg-white dark:bg-black rounded-lg border border-slate-200 dark:border-neutral-800 p-10 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
+      No data in the selected range.
+    </div>
+  );
 
   return (
     <PullToRefresh onRefresh={fetchStatistics}>
@@ -313,110 +334,116 @@ export default function App() {
           maskedKey={maskedKey}
         />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-3.5 sm:space-y-4">
-        {/* Date Filter Bar */}
-        <FilterBar
-          datePreset={datePreset}
-          onDatePresetChange={handleDatePresetChange}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onCustomDateChange={handleCustomDateChange}
-        />
-
-        {/* Error Notification Banner */}
-        {error && (
-          <div className="p-3 rounded bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 flex items-center justify-between gap-3 text-rose-800 dark:text-rose-200 text-xs">
-            <div>
-              <span className="font-semibold">Error: </span>
-              <span className="font-mono text-[11px]">{error}</span>
+        {/* Main Container */}
+        <main
+          className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-3.5"
+          style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+        >
+          {/* Error Notification Banner */}
+          {error && tab !== 'settings' && (
+            <div className="p-3 rounded bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 flex items-center justify-between gap-3 text-rose-800 dark:text-rose-200 text-xs">
+              <div>
+                <span className="font-semibold">Error: </span>
+                <span className="font-mono text-[11px]">{error}</span>
+              </div>
+              <button
+                onClick={fetchStatistics}
+                className="px-2 py-1 bg-white dark:bg-rose-900/40 border border-rose-300 dark:border-rose-800/80 rounded text-rose-900 dark:text-rose-100 font-medium text-xs hover:bg-rose-50 dark:hover:bg-rose-900 cursor-pointer shrink-0"
+              >
+                Retry
+              </button>
             </div>
-            <button
-              onClick={fetchStatistics}
-              className="px-2 py-1 bg-white dark:bg-rose-900/40 border border-rose-300 dark:border-rose-800/80 rounded text-rose-900 dark:text-rose-100 font-medium text-xs hover:bg-rose-50 dark:hover:bg-rose-900 cursor-pointer shrink-0"
-            >
-              Retry
-            </button>
-          </div>
-        )}
+          )}
 
-        {/* Offline Cached Data Indicator */}
-        {showingCached && !error && (
-          <div className="p-2.5 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex items-center justify-between gap-3 text-amber-800 dark:text-amber-200 text-[11px] font-mono">
-            <span>
-              Offline — showing cached data.
-              {lastUpdated && ` Last synced ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
-            </span>
-          </div>
-        )}
+          {/* Offline Cached Data Indicator */}
+          {showingCached && !error && tab !== 'settings' && (
+            <div className="p-2.5 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex items-center justify-between gap-3 text-amber-800 dark:text-amber-200 text-[11px] font-mono">
+              <span>
+                Offline — showing cached data.
+                {lastUpdated && ` Last synced ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
+              </span>
+            </div>
+          )}
 
-        {/* Highlights */}
-        <EarningsHighlight
-          currentBalance={currentBalance}
-          effectiveLifetimeEarnings={effectiveLifetimeEarnings}
-          totalWithdrawals={totalWithdrawals}
-          todayMoney={todayMoney}
-          todayImpressions={todayImpressions}
-          todayCpm={todayCpm}
-          todayDate={todayStr}
-          yesterdayMoney={yesterdayMoney}
-          yesterdayImpressions={yesterdayImpressions}
-          yesterdayCpm={yesterdayCpm}
-          yesterdayDate={yesterdayStr}
-        />
+          {/* Tab content with smooth transitions */}
+          <AnimatePresence mode="wait" initial={false}>
+            {tab === 'home' && (
+              <motion.div
+                key="home"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="space-y-3.5"
+              >
+                <EarningsHighlight
+                  currentBalance={currentBalance}
+                  effectiveLifetimeEarnings={effectiveLifetimeEarnings}
+                  totalWithdrawals={totalWithdrawals}
+                  todayMoney={todayMoney}
+                  todayImpressions={todayImpressions}
+                  todayCpm={todayCpm}
+                  todayDate={todayStr}
+                  yesterdayMoney={yesterdayMoney}
+                  yesterdayImpressions={yesterdayImpressions}
+                  yesterdayCpm={yesterdayCpm}
+                  yesterdayDate={yesterdayStr}
+                />
+                <KpiGrid
+                  stats={aggregatedTotals}
+                  selectedDaysCount={aggregatedTotals.activeDays}
+                />
+              </motion.div>
+            )}
 
-        {/* Initial Loading / Content with smooth transitions */}
-        <AnimatePresence mode="wait" initial={false}>
-          {isLoading && dailyStats.length === 0 && !error ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="bg-white dark:bg-black rounded-lg border border-slate-200 dark:border-neutral-800 p-12 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono"
-            >
-              Loading analytics...
-            </motion.div>
-          ) : (
-            <motion.div
-              key="content"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="space-y-4"
-            >
-              {/* Period KPI Cards */}
-              <KpiGrid
-                stats={aggregatedTotals}
-                selectedDaysCount={aggregatedTotals.activeDays}
-              />
+            {tab === 'graph' && (
+              <motion.div
+                key="graph"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="space-y-3.5"
+              >
+                {filterBar}
+                {isLoading && dailyStats.length === 0 && !error ? loadingPanel : isEmpty ? emptyPanel : <ChartsSection stats={dailyStats} />}
+              </motion.div>
+            )}
 
-              {/* Overview Section */}
-              <div className="space-y-4">
-                {/* Charts Section */}
-                <ChartsSection stats={dailyStats} />
-
-                {/* Daily Breakdown Table */}
+            {tab === 'daily' && (
+              <motion.div
+                key="daily"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="space-y-3.5"
+              >
+                {filterBar}
                 <DailyStatsTable
                   stats={dailyStats}
                   dateFrom={dateFrom}
                   dateTo={dateTo}
                 />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
+              </motion.div>
+            )}
 
-      {/* Footer */}
-        <footer className="border-t border-slate-200 dark:border-neutral-900 pt-4 mt-8" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-slate-400 dark:text-neutral-500">
-            <span>Monetag SSP v5</span>
-            <span className="font-mono text-[11px]">EST</span>
-          </div>
-        </footer>
+            {tab === 'settings' && (
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                <SettingsPage />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
+
+        {/* Bottom Navigation */}
+        <BottomNav activeTab={tab} onTabChange={setTab} />
       </div>
     </PullToRefresh>
   );

@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import { SettingsProvider } from './context/SettingsContext.tsx';
 import { ThemeProvider } from './context/ThemeContext.tsx';
 import './index.css';
 import { registerSW } from 'virtual:pwa-register';
@@ -23,8 +24,10 @@ if (!Capacitor.isNativePlatform()) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider>
-      <App />
-    </ThemeProvider>
+    <SettingsProvider>
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
+    </SettingsProvider>
   </StrictMode>,
 );

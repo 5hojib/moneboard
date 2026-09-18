@@ -1,7 +1,7 @@
 import {
-  MONETAG_API_KEY,
+  getApiKey,
+  getTotalWithdrawals,
   MONETAG_BASE_URL,
-  MONETAG_TOTAL_WITHDRAWALS,
   USE_DIRECT_MONETAG,
 } from '../config';
 import type { StatItem } from '../types';
@@ -76,12 +76,13 @@ async function rawFetch(url: string, init: RequestInit, withTimeout: boolean): P
 
 export async function getHealth(): Promise<ApiResponse<HealthData>> {
   if (USE_DIRECT_MONETAG) {
+    const apiKey = getApiKey();
     return {
       ok: true,
       data: {
-        hasKey: Boolean(MONETAG_API_KEY),
-        maskedKey: MONETAG_API_KEY ? `${MONETAG_API_KEY.slice(0, 4)}...${MONETAG_API_KEY.slice(-4)}` : null,
-        totalWithdrawals: MONETAG_TOTAL_WITHDRAWALS,
+        hasKey: Boolean(apiKey),
+        maskedKey: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : null,
+        totalWithdrawals: getTotalWithdrawals(),
       },
     };
   }
@@ -102,7 +103,7 @@ export async function getStatistics(
         method: 'POST',
         headers: {
           ...SAFE_HEADERS,
-          'Authorization': `Bearer ${MONETAG_API_KEY}`,
+          'Authorization': `Bearer ${getApiKey()}`,
         },
         body: JSON.stringify(payload),
       },
