@@ -1,8 +1,8 @@
-// Monetag API key baked into the APK. Can be overridden at build time via the
-// VITE_MONETAG_API_KEY env var (used by the CI release workflow).
+// Monetag API key. No key is baked into the build — the user provides their
+// own key the first time the app opens (stored on-device). An optional build
+// time override is still supported via VITE_MONETAG_API_KEY (CI release builds).
 export const MONETAG_API_KEY =
-  (import.meta.env.VITE_MONETAG_API_KEY as string | undefined)?.trim() ||
-  '0c2e80e977b00db4cbe43041d2e8b84eb7970fed2214fdba';
+  (import.meta.env.VITE_MONETAG_API_KEY as string | undefined)?.trim() || '';
 
 // Total cumulative withdrawals (USD) used for the balance calculation.
 export const MONETAG_TOTAL_WITHDRAWALS = (() => {

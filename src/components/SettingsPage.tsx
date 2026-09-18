@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Check, KeyRound, DollarSign, Monitor, Sun, Moon } from 'lucide-react';
 import { useSettingsContext } from '../context/SettingsContext';
 import { ThemeMode } from '../hooks/useSettings';
-import { MONETAG_API_KEY as BUILTIN_API_KEY } from '../config';
 
 function SaveButton({ saved }: { saved: boolean }) {
   return (
@@ -27,9 +26,6 @@ export default function SettingsPage() {
   );
   const [apiSaved, setApiSaved] = useState(false);
   const [withdrawalSaved, setWithdrawalSaved] = useState(false);
-
-  // The configured key equals the value baked into the build when untouched.
-  const usingDefaultKey = settings.apiKey === BUILTIN_API_KEY;
 
   const handleSaveApiKey = () => {
     setApiKey(apiKey);
@@ -73,7 +69,7 @@ export default function SettingsPage() {
             className="w-full bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 rounded px-3 py-2 font-mono text-xs text-slate-900 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-600 focus:outline-none focus:border-slate-400 dark:focus:border-neutral-500"
           />
           <p className="text-[11px] text-slate-400 dark:text-neutral-500 leading-snug">
-            Fetched statistics use this key. {usingDefaultKey && 'No custom key set — the bundled default key is in use.'}
+            Fetched statistics use this key. It is read-only and stored only on this device.
           </p>
           <div className="flex items-center justify-between gap-2">
             <SaveButton saved={apiSaved} />
@@ -135,7 +131,7 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="px-4 py-3">
-          <div id="theme-switcher" className="h-10 flex items-center bg-slate-100 dark:bg-neutral-900 p-0.5 rounded-2xl text-xs">
+          <div id="theme-switcher" className="h-10 flex items-center bg-slate-100 dark:bg-neutral-900 p-0.5 rounded-md text-xs">
             {themes.map((t) => {
               const Icon = t.icon;
               const active = settings.themeMode === t.id;
@@ -145,7 +141,7 @@ export default function SettingsPage() {
                   id={`theme-opt-${t.id}`}
                   type="button"
                   onClick={() => setThemeMode(t.id)}
-                  className={`flex-1 h-full px-2 rounded flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none leading-none ${
+                  className={`flex-1 h-full px-2 rounded-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none leading-none ${
                     active
                       ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-white font-medium'
                       : 'text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white'

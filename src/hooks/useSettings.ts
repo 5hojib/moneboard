@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { MONETAG_API_KEY as DEFAULT_API_KEY, MONETAG_TOTAL_WITHDRAWALS as DEFAULT_WITHDRAWALS } from '../config';
+import { MONETAG_TOTAL_WITHDRAWALS as DEFAULT_WITHDRAWALS } from '../config';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -31,7 +31,7 @@ export function loadSettings(): Settings {
       : 'system';
 
   return {
-    apiKey: typeof stored.apiKey === 'string' && stored.apiKey.trim() ? stored.apiKey.trim() : DEFAULT_API_KEY,
+    apiKey: typeof stored.apiKey === 'string' && stored.apiKey.trim() ? stored.apiKey.trim() : '',
     totalWithdrawals: Number.isFinite(withdrawals) && withdrawals >= 0 ? withdrawals : DEFAULT_WITHDRAWALS,
     themeMode,
   };

@@ -9,6 +9,7 @@ import ChartsSection from './components/ChartsSection';
 import FilterBar from './components/FilterBar';
 import DailyStatsTable from './components/DailyStatsTable';
 import SettingsPage from './components/SettingsPage';
+import OnboardingScreen from './components/OnboardingScreen';
 import { useSettingsContext } from './context/SettingsContext';
 
 import {
@@ -186,14 +187,16 @@ export default function App() {
     }
   }, [dateFrom, dateTo]);
 
-  // Load everything on mount
+  // Load everything on mount (skipped until an API key is configured)
   useEffect(() => {
+    if (!hasKey) return;
     loadInitialCollections();
-  }, [loadInitialCollections]);
+  }, [hasKey, loadInitialCollections]);
 
   useEffect(() => {
+    if (!hasKey) return;
     fetchStatistics();
-  }, [fetchStatistics]);
+  }, [hasKey, fetchStatistics]);
 
   // Re-fetch with fresh credentials whenever the API key changes in Settings
   const prevKeyRef = useRef(settings.apiKey);
@@ -302,6 +305,21 @@ export default function App() {
     return effectiveLifetimeEarnings - totalWithdrawals;
   }, [effectiveLifetimeEarnings, totalWithdrawals]);
 
+  // Monetag holds the last 4 days of earnings. Sum the last 4 distinct daily
+  // rows (from recentStats, already sorted chronologically by the API) to get
+  // the held balance; the rest of the balance is approved / withdrawable.
+  const heldBalance = useMemo(() => {
+    const sorted = [...recentStats]
+      .filter(s => s.date_time)
+      .sort((a, b) => (a.date_time! > b.date_time! ? 1 : -1))
+      .slice(-4);
+    return sorted.reduce((acc, s) => acc + (parseFloat(s.money as any) || 0), 0);
+  }, [recentStats]);
+
+  const approvedBalance = useMemo(() => {
+    return Math.max(0, currentBalance - heldBalance);
+  }, [currentBalance, heldBalance]);
+
   const filterBar = (
     <FilterBar
       datePreset={datePreset}
@@ -324,6 +342,12 @@ export default function App() {
       No data in the selected range.
     </div>
   );
+
+  // Fresh installs have no API key yet — ask for it (and withdrawals) before
+  // showing the dashboard, instead of relying on a bundled key.
+  if (!hasKey) {
+    return <OnboardingScreen />;
+  }
 
   return (
     <PullToRefresh onRefresh={fetchStatistics}>
@@ -381,6 +405,8 @@ export default function App() {
                   currentBalance={currentBalance}
                   effectiveLifetimeEarnings={effectiveLifetimeEarnings}
                   totalWithdrawals={totalWithdrawals}
+                  heldBalance={heldBalance}
+                  approvedBalance={approvedBalance}
                   todayMoney={todayMoney}
                   todayImpressions={todayImpressions}
                   todayCpm={todayCpm}

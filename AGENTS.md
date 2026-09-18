@@ -4,7 +4,9 @@ Guidance for AI agents and contributors working in this repository.
 
 ## Project overview
 
-**Moneboard** — an unofficial, read-only earnings dashboard for Monetag publishers (the API key is only used to read a publisher's own statistics). The app ships as a **native Android app** (Capacitor shell with React 19 + Vite + Tailwind v4 bundled), and API calls go directly to `https://api.monetag.com/v5` with the bundled API key.
+**Moneboard** — an unofficial, read-only earnings dashboard for Monetag publishers (the API key is only used to read a publisher's own statistics). The app ships as a **native Android app** (Capacitor shell with React 19 + Vite + Tailwind v4 bundled), and API calls go directly to `https://api.monetag.com/v5`.
+
+The API key is **not bundled**. On first open the app asks the user for their Monetag API key and total withdrawals; both are stored on-device under `monetag_settings_v1`.
 
 The app is published as a **sideloadable Android APK** via GitHub Releases. Users install the APK manually; it is not on the Play Store.
 
@@ -31,10 +33,11 @@ The app is published as a **sideloadable Android APK** via GitHub Releases. User
 
 ## Architecture notes
 
-- `src/App.tsx` — tab routing (`home` | `daily` | `graph` | `settings`), data fetching with a localStorage cache fallback, Today/Yesterday computation, swipe-to-change-tab.
-- `src/config.ts` — bundled API key/withdrawals, runtime getters.
+- `src/App.tsx` — tab routing (`home` | `daily` | `graph` | `settings`), data fetching with a localStorage cache fallback, Today/Yesterday computation, swipe-to-change-tab. Shows an `OnboardingScreen` when no API key is configured yet.
+- `src/config.ts` — no bundled API key (defaults to empty), build-time override via `VITE_MONETAG_API_KEY`, runtime getters.
 - `src/api/client.ts` — Monetag API calls (direct from the native app).
-- `src/components/` — UI: `Header`, `BottomNav`, `EarningsHighlight` (full-screen centered typographic balance hero), `ChartsSection`, `DailyStatsTable`, `FilterBar`, `SettingsPage`, `PullToRefresh`.
+- `src/components/` — UI: `Header`, `BottomNav`, `OnboardingScreen`, `EarningsHighlight` (full-screen centered typographic balance hero with odometer animation and the 4-day hold / approved split), `ChartsSection`, `DailyStatsTable`, `FilterBar`, `SettingsPage`, `PullToRefresh`, `Odometer` (rolling digit counter).
+- Home hero balance math: `currentBalance = lifetime − withdrawals`; Monetag holds the last 4 days of earnings, so `heldBalance = sum of last 4 daily rows` and `approvedBalance = currentBalance − heldBalance`.
 - `src/context/` — `SettingsContext` (API key/withdrawals/theme persisted to localStorage) and `ThemeContext` (resolved light/dark; also drives the Android status bar style).
 - Settings are persisted under the localStorage key `monetag_settings_v1`.
 

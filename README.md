@@ -8,10 +8,11 @@ Moneboard lets you keep an eye on your Monetag publisher statistics on the go. Y
 
 ## Features
 
-- **Home** — current balance, lifetime earnings & withdrawals, plus a Today vs. Yesterday typographic hero (revenue, impressions, CPM).
+- **Home** — current balance with odometer animation, the **Hold / Approved** split (Monetag holds the last 4 days of earnings), lifetime earnings & withdrawals, plus a Today vs. Yesterday typographic hero.
 - **Graph** — interactive trend charts for Revenue, CPM, Impressions and Clicks over 7 days, 30 days, all time, or a custom date range.
 - **Daily** — full daily breakdown table of your stats.
-- **Settings** — paste your Monetag API key (stored on-device), configure withdrawals, and switch light/dark theme.
+- **Settings** — paste your Monetag API key (stored on-device, not bundled), configure withdrawals, and switch light/dark theme.
+- **Onboarding** — on first open the app asks for your Monetag API key and total withdrawals before showing the dashboard. No bundled API key.
 - **Swipe to navigate** — swipe left/right to move between Home → Daily → Graph → Settings.
 - **Pull to refresh** — the dashboard refreshes on any data page and shows a "refreshing" chip.
 - **Minimal black & white UI** — no accent colors, no shadows, no gradients.
@@ -23,7 +24,7 @@ Moneboard ships as a **native Android app** (APK):
 
 | Target | Stack |
 |---|---|
-| **Android (APK)** | Capacitor shell around a Vite + React 19 + Tailwind CSS v4 bundle; API calls go directly to `https://api.monetag.com/v5` with the bundled key |
+| **Android (APK)** | Capacitor shell around a Vite + React 19 + Tailwind CSS v4 bundle; API calls go directly to `https://api.monetag.com/v5` with your key |
 
 Look on the **GitHub Releases** page for the latest Android APK to sideload (Moneboard is not on the Play Store).
 

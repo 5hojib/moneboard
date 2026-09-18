@@ -1,9 +1,12 @@
 import { formatCurrencyFixed, formatCompactNumber } from '../utils/formatters';
+import { Odometer } from './Odometer';
 
 interface EarningsHighlightProps {
   currentBalance: number;
   effectiveLifetimeEarnings: number;
   totalWithdrawals: number;
+  heldBalance: number;
+  approvedBalance: number;
   todayMoney: number;
   todayImpressions: number;
   todayCpm: number;
@@ -18,6 +21,8 @@ export default function EarningsHighlight({
   currentBalance,
   effectiveLifetimeEarnings,
   totalWithdrawals,
+  heldBalance,
+  approvedBalance,
   todayMoney,
   todayImpressions,
   todayDate,
@@ -33,11 +38,28 @@ export default function EarningsHighlight({
           Current Balance
         </p>
 
-        <p className="mt-3 text-6xl sm:text-8xl font-bold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
-          {formatCurrencyFixed(currentBalance)}
+        <p className="mt-4 text-6xl sm:text-8xl font-bold tracking-tight leading-none text-slate-900 dark:text-white">
+          <Odometer value={currentBalance} format={formatCurrencyFixed} />
         </p>
 
-        <p className="mt-4 text-[11px] font-mono text-slate-500 dark:text-neutral-400 tabular-nums">
+        {/* Hold & Approved — Monetag holds the last 4 days of earnings */}
+        <div className="mt-6 flex items-center justify-center gap-6 text-[11px] font-mono text-slate-500 dark:text-neutral-400 tabular-nums">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="uppercase tracking-[0.16em] text-[10px] font-sans text-slate-400 dark:text-neutral-500">Hold</span>
+            <span className="font-semibold text-slate-700 dark:text-neutral-200">
+              <Odometer value={heldBalance} format={formatCurrencyFixed} />
+            </span>
+          </span>
+          <span className="text-slate-200 dark:text-neutral-800 select-none">|</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="uppercase tracking-[0.16em] text-[10px] font-sans text-slate-400 dark:text-neutral-500">Approved</span>
+            <span className="font-semibold text-slate-700 dark:text-neutral-200">
+              <Odometer value={approvedBalance} format={formatCurrencyFixed} />
+            </span>
+          </span>
+        </div>
+
+        <p className="mt-3 text-[11px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
           Lifetime {formatCurrencyFixed(effectiveLifetimeEarnings)}
           {totalWithdrawals > 0 && (
             <> · Withdrawn {formatCurrencyFixed(totalWithdrawals)}</>
@@ -52,8 +74,8 @@ export default function EarningsHighlight({
       >
         <div id="earnings-today" className="text-center">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-neutral-500">Today</p>
-          <p className="mt-2 text-2xl sm:text-4xl font-bold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
-            {formatCurrencyFixed(todayMoney)}
+          <p className="mt-2 text-2xl sm:text-4xl font-bold tracking-tight leading-none text-slate-900 dark:text-white">
+            <Odometer value={todayMoney} format={formatCurrencyFixed} />
           </p>
           <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
             {todayDate || 'Today'} · {formatCompactNumber(todayImpressions)} imps
@@ -62,8 +84,8 @@ export default function EarningsHighlight({
 
         <div id="earnings-yesterday" className="text-center border-l border-slate-100 dark:border-neutral-900">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-neutral-500">Yesterday</p>
-          <p className="mt-2 text-2xl sm:text-4xl font-bold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
-            {formatCurrencyFixed(yesterdayMoney)}
+          <p className="mt-2 text-2xl sm:text-4xl font-bold tracking-tight leading-none text-slate-900 dark:text-white">
+            <Odometer value={yesterdayMoney} format={formatCurrencyFixed} />
           </p>
           <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
             {yesterdayDate || 'Yesterday'} · {formatCompactNumber(yesterdayImpressions)} imps
