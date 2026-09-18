@@ -12,19 +12,18 @@ Moneboard lets you keep an eye on your Monetag publisher statistics on the go. Y
 - **Graph** — interactive trend charts for Revenue, CPM, Impressions and Clicks over 7 days, 30 days, all time, or a custom date range.
 - **Daily** — full daily breakdown table of your stats.
 - **Settings** — paste your Monetag API key (stored on-device), configure withdrawals, and switch light/dark theme.
-- **Swipe to navigate** — swipe left/right to move between Home → Graph → Daily → Settings.
+- **Swipe to navigate** — swipe left/right to move between Home → Daily → Graph → Settings.
 - **Pull to refresh** — the dashboard refreshes on any data page and shows a "refreshing" chip.
 - **Minimal black & white UI** — no accent colors, no shadows, no gradients.
 - **Offline cache** — last fetched data is cached locally so the dashboard still loads without a connection.
 
-## Supported targets
+## Supported target
 
-One codebase ships two targets:
+Moneboard ships as a **native Android app** (APK):
 
 | Target | Stack |
 |---|---|
-| **Web / PWA** | Vite + React 19 + Tailwind CSS v4 |
-| **Native Android (APK)** | Capacitor shell around the same web app; API calls go directly to `https://api.monetag.com/v5` with the bundled key |
+| **Android (APK)** | Capacitor shell around a Vite + React 19 + Tailwind CSS v4 bundle; API calls go directly to `https://api.monetag.com/v5` with the bundled key |
 
 Look on the **GitHub Releases** page for the latest Android APK to sideload (Moneboard is not on the Play Store).
 
@@ -36,7 +35,6 @@ The Monetag API key only grants access to the publisher's own statistics endpoin
 
 ```bash
 npm install        # install dependencies
-npm run dev        # web dev server with /api proxy
 npm run lint       # TypeScript typecheck (run after changes)
 npm run build:android   # build web assets into dist/www (Capacitor bundle)
 npm run android:apk     # build a local release APK
@@ -44,6 +42,6 @@ npm run android:apk     # build a local release APK
 
 ## How it's built
 
-This project was **built with AI** (LLM-assisted development) to get a minimal, mobile-first earnings dashboard shipped quickly for both web and Android.
+This project was **built with AI** (LLM-assisted development) to get a minimal, mobile-first Android earnings dashboard shipped quickly.
 
 See `AGENTS.md` for repository conventions and the versioning/release workflow.

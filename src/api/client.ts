@@ -1,7 +1,6 @@
 import {
   getApiKey,
   MONETAG_BASE_URL,
-  USE_DIRECT_MONETAG,
 } from '../config';
 import type { StatItem } from '../types';
 
@@ -73,28 +72,16 @@ export async function getStatistics(
   const { page = 1, page_size = 500, ...rest } = body;
   const payload = { page: Number(page), page_size: Math.min(Number(page_size), 500), ...rest };
 
-  if (USE_DIRECT_MONETAG) {
-    return rawFetch(
-      `${MONETAG_BASE_URL}/pub/statistics`,
-      {
-        method: 'POST',
-        headers: {
-          ...SAFE_HEADERS,
-          'Authorization': `Bearer ${getApiKey()}`,
-        },
-        body: JSON.stringify(payload),
-      },
-      true
-    );
-  }
-
   return rawFetch(
-    '/api/statistics',
+    `${MONETAG_BASE_URL}/pub/statistics`,
     {
       method: 'POST',
-      headers: SAFE_HEADERS,
+      headers: {
+        ...SAFE_HEADERS,
+        'Authorization': `Bearer ${getApiKey()}`,
+      },
       body: JSON.stringify(payload),
     },
-    false
+    true
   );
 }

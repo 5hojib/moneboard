@@ -4,21 +4,17 @@ Guidance for AI agents and contributors working in this repository.
 
 ## Project overview
 
-**Moneboard** — an unofficial, read-only earnings dashboard for Monetag publishers (the API key is only used to read a publisher's own statistics). One codebase ships two targets:
-
-- **Web / PWA** (Vite + React 19 + Tailwind v4)
-- **Native Android** (Capacitor shell wrapping the same web app, API calls go directly to `https://api.monetag.com/v5` with the bundled API key)
+**Moneboard** — an unofficial, read-only earnings dashboard for Monetag publishers (the API key is only used to read a publisher's own statistics). The app ships as a **native Android app** (Capacitor shell with React 19 + Vite + Tailwind v4 bundled), and API calls go directly to `https://api.monetag.com/v5` with the bundled API key.
 
 The app is published as a **sideloadable Android APK** via GitHub Releases. Users install the APK manually; it is not on the Play Store.
 
 ## Commands
 
-- `npm install` — install dependencies (worktree may reference `sharp`; restore with `npm install` as needed).
+- `npm install` — install dependencies.
 - `npm run lint` — TypeScript typecheck (`tsc --noEmit`). **Always run after changes.**
 - `npm run build:android` — build web assets into `dist/www` (what Capacitor bundles).
 - `npm run android:sync` — `build:android` + `cap sync android`.
 - `npm run android:apk` — full local APK build (`assembleRelease`).
-- `npm run dev` — local web dev server with the `/api` proxy (requires `MONETAG_API_KEY` env or the bundled default key).
 
 ## Versioning & releases (IMPORTANT)
 
@@ -35,11 +31,11 @@ The app is published as a **sideloadable Android APK** via GitHub Releases. User
 
 ## Architecture notes
 
-- `src/App.tsx` — tab routing (`home` | `graph` | `daily` | `settings`), data fetching with a localStorage cache fallback, Today/Yesterday computation.
-- `src/config.ts` — native vs web detection (`USE_DIRECT_MONETAG`), bundled API key/withdrawals, runtime getters.
-- `src/api/client.ts` — Monetag API calls (direct from the native app; `/api` proxy on web).
-- `src/components/` — UI: `Header`, `BottomNav`, `EarningsHighlight` (full-screen typographic balance hero), `KpiGrid`, `ChartsSection`, `DailyStatsTable`, `FilterBar`, `SettingsPage`, `PullToRefresh`.
-- `src/context/` — `SettingsContext` (API key/withdrawals/theme persisted to localStorage) and `ThemeContext` (resolved light/dark).
+- `src/App.tsx` — tab routing (`home` | `daily` | `graph` | `settings`), data fetching with a localStorage cache fallback, Today/Yesterday computation, swipe-to-change-tab.
+- `src/config.ts` — bundled API key/withdrawals, runtime getters.
+- `src/api/client.ts` — Monetag API calls (direct from the native app).
+- `src/components/` — UI: `Header`, `BottomNav`, `EarningsHighlight` (full-screen centered typographic balance hero), `ChartsSection`, `DailyStatsTable`, `FilterBar`, `SettingsPage`, `PullToRefresh`.
+- `src/context/` — `SettingsContext` (API key/withdrawals/theme persisted to localStorage) and `ThemeContext` (resolved light/dark; also drives the Android status bar style).
 - Settings are persisted under the localStorage key `monetag_settings_v1`.
 
 ## UI conventions

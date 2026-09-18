@@ -1,4 +1,4 @@
-import { formatCurrency, formatCompactNumber } from '../utils/formatters';
+import { formatCurrencyFixed, formatCompactNumber } from '../utils/formatters';
 
 interface EarningsHighlightProps {
   currentBalance: number;
@@ -34,13 +34,13 @@ export default function EarningsHighlight({
         </p>
 
         <p className="mt-3 text-6xl sm:text-8xl font-bold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
-          {formatCurrency(currentBalance)}
+          {formatCurrencyFixed(currentBalance)}
         </p>
 
         <p className="mt-4 text-[11px] font-mono text-slate-500 dark:text-neutral-400 tabular-nums">
-          Lifetime {formatCurrency(effectiveLifetimeEarnings)}
+          Lifetime {formatCurrencyFixed(effectiveLifetimeEarnings)}
           {totalWithdrawals > 0 && (
-            <> · Withdrawn {formatCurrency(totalWithdrawals)}</>
+            <> · Withdrawn {formatCurrencyFixed(totalWithdrawals)}</>
           )}
         </p>
       </div>
@@ -53,7 +53,7 @@ export default function EarningsHighlight({
         <div id="earnings-today" className="text-center">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-neutral-500">Today</p>
           <p className="mt-2 text-2xl sm:text-4xl font-bold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
-            {formatCurrency(todayMoney)}
+            {formatCurrencyFixed(todayMoney)}
           </p>
           <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
             {todayDate || 'Today'} · {formatCompactNumber(todayImpressions)} imps
@@ -63,7 +63,7 @@ export default function EarningsHighlight({
         <div id="earnings-yesterday" className="text-center border-l border-slate-100 dark:border-neutral-900">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-neutral-500">Yesterday</p>
           <p className="mt-2 text-2xl sm:text-4xl font-bold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
-            {formatCurrency(yesterdayMoney)}
+            {formatCurrencyFixed(yesterdayMoney)}
           </p>
           <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
             {yesterdayDate || 'Yesterday'} · {formatCompactNumber(yesterdayImpressions)} imps

@@ -1,5 +1,3 @@
-import { PWAInstallButton } from './PWAInstallButton';
-
 interface HeaderProps {
   lastUpdated: Date | null;
   hasKey: boolean;
@@ -25,9 +23,6 @@ export default function Header({
 
           {/* Actions */}
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs shrink-0">
-            {/* Install PWA Button */}
-            <PWAInstallButton />
-
             {lastUpdated && (
               <span className="hidden sm:inline-flex items-center text-slate-400 dark:text-neutral-500 font-mono text-[11px] leading-none">
                 {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

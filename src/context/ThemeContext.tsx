@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useSettingsContext } from './SettingsContext';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 
 export type ResolvedTheme = 'light' | 'dark';
 
@@ -38,6 +40,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       root.classList.remove('dark');
       root.style.colorScheme = 'light';
+    }
+
+    // Keep the Android system status bar (icons/text) in sync with the theme:
+    // white icons on dark, black icons on light.
+    if (Capacitor.isNativePlatform()) {
+      const isDark = resolvedTheme === 'dark';
+      StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: isDark ? '#000000' : '#ffffff' }).catch(() => {});
     }
   }, [resolvedTheme]);
 

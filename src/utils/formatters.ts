@@ -5,6 +5,18 @@ export function formatCurrency(val: number | string | undefined): string {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
+    maximumFractionDigits: num >= 1000 ? 2 : 4
+  }).format(num);
+}
+
+// Currency with exactly two decimals, used on the home balance hero.
+export function formatCurrencyFixed(val: number | string | undefined): string {
+  const num = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
+  if (isNaN(num)) return '$0.00';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(num);
 }
