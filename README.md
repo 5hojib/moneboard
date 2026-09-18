@@ -16,7 +16,7 @@ Moneboard lets you keep an eye on your Monetag publisher statistics on the go. Y
 - **Swipe to navigate** — swipe left/right to move between Home → Daily → Graph → Settings.
 - **Pull to refresh** — the dashboard refreshes on any data page and shows a "refreshing" chip.
 - **Minimal black & white UI** — no accent colors, no shadows, no gradients.
-- **Offline cache** — last fetched data is cached locally so the dashboard still loads without a connection.
+- **Offline cache** — every fetched day is stored in a local day-index per API key, so charts, tables and filters read entirely from cache (never the API). Pull-to-refresh only re-fetches the last few days and backfills any gaps; Settings has a **Load all data** button to cache the whole history.
 
 ## Supported target
 

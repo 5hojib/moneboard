@@ -85,3 +85,23 @@ export async function getStatistics(
     true
   );
 }
+
+// Pages through every row in the range (page_size is capped at 500 by the
+// API). Used for "load all history" and incremental backfills. Deduping is
+// left to the day-index merge (later daily rows win).
+export async function getAllStatistics(
+  body: StatisticsQuery
+): Promise<ApiResponse<{ result: StatItem[]; meta?: any }>> {
+  const pageSize = 500;
+  const all: StatItem[] = [];
+
+  for (let page = 1; page <= 500; page++) {
+    const res = await getStatistics({ ...body, page, page_size: pageSize });
+    if (!res.ok) return res;
+    const batch = res.data?.result ?? [];
+    all.push(...batch);
+    if (batch.length < pageSize) break;
+  }
+
+  return { ok: true, data: { result: all } };
+}

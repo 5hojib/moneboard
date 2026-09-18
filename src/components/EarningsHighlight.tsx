@@ -15,6 +15,8 @@ interface EarningsHighlightProps {
   yesterdayImpressions: number;
   yesterdayCpm: number;
   yesterdayDate: string;
+  // Bump to replay every odometer roll even when values are unchanged.
+  replay?: number;
 }
 
 export default function EarningsHighlight({
@@ -28,7 +30,8 @@ export default function EarningsHighlight({
   todayDate,
   yesterdayMoney,
   yesterdayImpressions,
-  yesterdayDate
+  yesterdayDate,
+  replay = 0,
 }: EarningsHighlightProps) {
   return (
     <section id="earnings-highlight-section" className="pt-8 pb-2 sm:pt-14">
@@ -39,7 +42,7 @@ export default function EarningsHighlight({
         </p>
 
         <p className="mt-4 text-6xl sm:text-8xl font-bold tracking-tight leading-none text-slate-900 dark:text-white">
-          <Odometer value={currentBalance} format={formatCurrencyFixed} />
+          <Odometer value={currentBalance} format={formatCurrencyFixed} replay={replay} durationSecs={1.8} />
         </p>
 
         {/* Hold & Approved — Monetag holds the last 4 days of earnings */}
@@ -47,14 +50,14 @@ export default function EarningsHighlight({
           <span className="inline-flex items-center gap-1.5">
             <span className="uppercase tracking-[0.16em] text-[10px] font-sans text-slate-400 dark:text-neutral-500">Hold</span>
             <span className="font-semibold text-slate-700 dark:text-neutral-200">
-              <Odometer value={heldBalance} format={formatCurrencyFixed} />
+              <Odometer value={heldBalance} format={formatCurrencyFixed} replay={replay} />
             </span>
           </span>
           <span className="text-slate-200 dark:text-neutral-800 select-none">|</span>
           <span className="inline-flex items-center gap-1.5">
             <span className="uppercase tracking-[0.16em] text-[10px] font-sans text-slate-400 dark:text-neutral-500">Approved</span>
             <span className="font-semibold text-slate-700 dark:text-neutral-200">
-              <Odometer value={approvedBalance} format={formatCurrencyFixed} />
+              <Odometer value={approvedBalance} format={formatCurrencyFixed} replay={replay} />
             </span>
           </span>
         </div>
@@ -75,7 +78,7 @@ export default function EarningsHighlight({
         <div id="earnings-today" className="text-center">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-neutral-500">Today</p>
           <p className="mt-2 text-2xl sm:text-4xl font-bold tracking-tight leading-none text-slate-900 dark:text-white">
-            <Odometer value={todayMoney} format={formatCurrencyFixed} />
+            <Odometer value={todayMoney} format={formatCurrencyFixed} replay={replay} />
           </p>
           <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
             {todayDate || 'Today'} · {formatCompactNumber(todayImpressions)} imps
@@ -85,7 +88,7 @@ export default function EarningsHighlight({
         <div id="earnings-yesterday" className="text-center border-l border-slate-100 dark:border-neutral-900">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-neutral-500">Yesterday</p>
           <p className="mt-2 text-2xl sm:text-4xl font-bold tracking-tight leading-none text-slate-900 dark:text-white">
-            <Odometer value={yesterdayMoney} format={formatCurrencyFixed} />
+            <Odometer value={yesterdayMoney} format={formatCurrencyFixed} replay={replay} />
           </p>
           <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
             {yesterdayDate || 'Yesterday'} · {formatCompactNumber(yesterdayImpressions)} imps

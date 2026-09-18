@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTouchSwipe } from './hooks/useTouchSwipe';
 import { AnimatePresence, motion } from 'motion/react';
 import Header from './components/Header';
@@ -12,50 +12,38 @@ import SettingsPage from './components/SettingsPage';
 import OnboardingScreen from './components/OnboardingScreen';
 import { useSettingsContext } from './context/SettingsContext';
 
-import {
-  StatItem,
-  AggregatedStats,
-  DatePreset
-} from './types';
+import { StatItem, DatePreset } from './types';
 import {
   getDateRangeForPreset,
   getISODateString,
   calculateCpm,
-  calculateCtr
+  addDaysISO,
+  getMissingDates,
+  groupConsecutiveRanges,
 } from './utils/formatters';
-import { getStatistics } from './api/client';
-import { buildCacheKey, readCache, writeCache } from './utils/apiCache';
+import { getAllStatistics } from './api/client';
+import { getDayIndex, mergeDayIndex } from './utils/apiCache';
 
-const STATS_CACHE_TTL = 15 * 60;
-const LIFETIME_CACHE_TTL = 60 * 60;
-const SNAPSHOT_KEY = 'boot_snapshot';
-const SNAPSHOT_TTL = 24 * 60 * 60;
+// How far back the app keeps an up-to-date rolling index without the user
+// explicitly running "Load all data". Anything older than this is preserved
+// in cache but only refreshed when the corresponding days are missing.
+const SYNC_WINDOW_DAYS = 30;
 
-// Network-first fetch with a localStorage cache fallback.
-// Serves fresh data when online and transparently falls back to cached
-// data when the network is unreachable (offline / slow start support).
-async function cachedStatistics<T>(
-  query: Parameters<typeof getStatistics>[0],
-  ttlSeconds = STATS_CACHE_TTL
-): Promise<{ ok: boolean; data?: T; error?: string; fromCache?: boolean }> {
-  const key = buildCacheKey('stats', JSON.stringify(query));
-  const hit = readCache<T>(key);
-  const res = await getStatistics(query);
+// Pull-to-refresh always re-fetches this many most-recent days (the tail),
+// because today/yesterday figures change as Monetag settles each day. Days
+// further back are only fetched when they are missing from the cache.
+const TAIL_DAYS = 3;
 
-  if (res.ok && res.data !== undefined) {
-    writeCache(key, res.data as T, ttlSeconds);
-    return { ok: true, data: res.data as T, fromCache: false };
-  }
-
-  if (hit) {
-    return { ok: true, data: hit.data, error: res.error, fromCache: true };
-  }
-
-  return { ok: false, error: res.error, fromCache: false };
-}
+// Monetag holds the last 4 days of a publisher's earnings. These DAYS are
+// rolling calendar days (running date), so we always sum exactly 4 distinct
+// dates ending at the newest known day — never 4 arbitrary rows (which could
+// span 5 calendar days and over-count the held balance).
+const HOLD_DAYS = 4;
 
 export default function App() {
   const { settings } = useSettingsContext();
+  const apiKey = settings.apiKey.trim();
+  const hasKey = apiKey.length > 0;
 
   // Bottom navigation
   const [tab, setTab] = useState<TabId>('home');
@@ -77,14 +65,9 @@ export default function App() {
   const [dateFrom, setDateFrom] = useState(initialDates.from);
   const [dateTo, setDateTo] = useState(initialDates.to);
 
-  // Statistics data
-  const [dailyStats, setDailyStats] = useState<StatItem[]>([]);
-
-  // Account overview / balance tracking: Lifetime Earnings minus Total Withdrawals
-  const [apiLifetimeEarnings, setApiLifetimeEarnings] = useState<number>(0);
-
-  // Dedicated recent stats cache (Today & Yesterday) so they persist even when switching ranges
-  const [recentStats, setRecentStats] = useState<StatItem[]>([]);
+  // Single source of truth: the cached day-index for this API key.
+  // Every filter/range is sliced from this index — no API round trip.
+  const [dayIndex, setDayIndex] = useState<StatItem[]>([]);
 
   // Metadata
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -94,136 +77,90 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [showingCached, setShowingCached] = useState(false);
 
+  // Pull-to-refresh / "load all" re-rolls the odometers even when the
+  // displayed values did not change. Bumping this key replays every roll.
+  const [replayKey, setReplayKey] = useState(0);
+
   // Settings-driven account info
-  const hasKey = settings.apiKey.trim().length > 0;
-  const maskedKey = hasKey
-    ? `${settings.apiKey.slice(0, 4)}...${settings.apiKey.slice(-4)}`
-    : null;
   const totalWithdrawals = settings.totalWithdrawals;
+  const maskedKey = hasKey
+    ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`
+    : null;
 
-  // Load lifetime balance & recent stats
-  const loadInitialCollections = useCallback(async () => {
-    try {
-      const today = getISODateString(new Date());
-      const lifetimeRes = await cachedStatistics<{ result: StatItem[] }>(
-        {
-          date_from: '2024-01-01',
-          date_to: today,
+  // "Load all data" progress (mirrored into the Settings page)
+  const [loadAllLoading, setLoadAllLoading] = useState(false);
+  const [loadAllMessage, setLoadAllMessage] = useState<string | null>(null);
+
+  // First render: hydrate state from localStorage so the dashboard paints
+  // instantly from cache, then top up only the missing recent days.
+  useEffect(() => {
+    if (!hasKey) return;
+    setDayIndex(getDayIndex(apiKey));
+  }, [hasKey, apiKey]);
+
+  // Incremental sync — the network path for pull-to-refresh and the initial
+  // top-up. Always pulls the most recent TAIL_DAYS (so Today/Yesterday stay
+  // current as Monetag settles), then backfills any other days missing from
+  // the cache within the rolling SYNC_WINDOW_DAYS window. Older cached days
+  // are left untouched here; the Settings "Load all data" button backfills
+  // them instead.
+  const syncStatistics = useCallback(async () => {
+    if (!hasKey) return;
+
+    const today = getISODateString(new Date());
+    const syncFrom = addDaysISO(today, -(SYNC_WINDOW_DAYS - 1));
+    const known = getDayIndex(apiKey).map(r => r.date_time).filter(Boolean) as string[];
+
+    // The tail is always re-fetched to pick up settling today/yesterday data.
+    const tailFrom = addDaysISO(today, -(TAIL_DAYS - 1));
+    const tailDates: string[] = [];
+    for (let d = tailFrom; d <= today; d = addDaysISO(d, 1)) tailDates.push(d);
+
+    const missing = getMissingDates(syncFrom, today, known);
+    const toFetch = [...new Set([...tailDates, ...missing])].sort();
+
+    let latestFetchError: string | null = null;
+
+    if (toFetch.length > 0) {
+      // Only the needed days are fetched, grouped into contiguous ranges so
+      // consecutive gaps cost a single API call each.
+      const ranges = groupConsecutiveRanges(toFetch);
+      for (const range of ranges) {
+        const res = await getAllStatistics({
+          date_from: range.from,
+          date_to: range.to,
           page: 1,
           page_size: 500,
-          group_by: ['date_time']
-        },
-        LIFETIME_CACHE_TTL
-      );
-
-      if (lifetimeRes.ok && Array.isArray(lifetimeRes.data?.result)) {
-        const sum = lifetimeRes.data.result.reduce((acc: number, row: any) => {
-          return acc + (parseFloat(row.money) || 0);
-        }, 0);
-        setApiLifetimeEarnings(sum);
-        setRecentStats(lifetimeRes.data.result.slice(-14));
-      }
-    } catch (err: any) {
-      console.warn('Initial collections loaded with non-fatal warning:', err);
-    }
-  }, []);
-
-  // Fetch statistics according to current date filters
-  const fetchStatistics = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      // Fetch daily time-series statistics
-      const dailyRes = await cachedStatistics<{ result: StatItem[] }>(
-        {
-          date_from: dateFrom,
-          date_to: dateTo,
-          page: 1,
-          page_size: 500,
-          group_by: ['date_time']
-        },
-        STATS_CACHE_TTL
-      );
-
-      if (!dailyRes.ok) {
-        throw new Error(dailyRes.error || 'Failed to fetch statistics from Monetag');
-      }
-
-      setShowingCached(Boolean(dailyRes.fromCache));
-
-      const rows: StatItem[] = Array.isArray(dailyRes.data?.result) ? dailyRes.data.result : [];
-      setDailyStats(rows);
-
-      if (!dailyRes.fromCache) {
-        writeCache(
-          SNAPSHOT_KEY,
-          { dailyStats: rows, lastUpdated: new Date().toISOString() },
-          SNAPSHOT_TTL
-        );
-      }
-
-      // If dailyStats contains recent records, keep recentStats updated
-      if (rows.length > 0) {
-        setRecentStats(prev => {
-          const merged = [...prev];
-          rows.forEach(r => {
-            const idx = merged.findIndex(m => m.date_time === r.date_time);
-            if (idx >= 0) {
-              merged[idx] = r;
-            } else {
-              merged.push(r);
-            }
-          });
-          return merged;
+          group_by: ['date_time'],
         });
+        if (res.ok && res.data) {
+          const merged = mergeDayIndex(apiKey, res.data.result ?? []);
+          setDayIndex(merged);
+        } else {
+          latestFetchError = res.error ?? 'Failed to fetch statistics from Monetag';
+        }
       }
+    }
 
+    if (latestFetchError) {
+      setError(latestFetchError);
+      setShowingCached(getDayIndex(apiKey).length > 0);
+    } else {
+      setError(null);
+      setShowingCached(false);
       setLastUpdated(new Date());
-    } catch (err: any) {
-      console.error('Error fetching statistics:', err);
-      setError(err.message || 'Failed to communicate with Monetag API');
-    } finally {
-      setIsLoading(false);
     }
-  }, [dateFrom, dateTo]);
+    setIsLoading(false);
+    setReplayKey(k => k + 1);
+  }, [hasKey, apiKey]);
 
-  // Load everything on mount (skipped until an API key is configured)
+  // Initial top-up on mount, and every time the API key changes.
   useEffect(() => {
     if (!hasKey) return;
-    loadInitialCollections();
-  }, [hasKey, loadInitialCollections]);
+    syncStatistics();
+  }, [hasKey, apiKey, syncStatistics]);
 
-  useEffect(() => {
-    if (!hasKey) return;
-    fetchStatistics();
-  }, [hasKey, fetchStatistics]);
-
-  // Re-fetch with fresh credentials whenever the API key changes in Settings
-  const prevKeyRef = useRef(settings.apiKey);
-  useEffect(() => {
-    if (prevKeyRef.current !== settings.apiKey) {
-      prevKeyRef.current = settings.apiKey;
-      loadInitialCollections();
-      fetchStatistics();
-    }
-  }, [settings.apiKey, fetchStatistics, loadInitialCollections]);
-
-  // Hydrate with the last known snapshot so the app renders instantly
-  // (and works offline) before the network round-trip completes.
-  useEffect(() => {
-    const snap = readCache<{ dailyStats: StatItem[]; lastUpdated: string }>(SNAPSHOT_KEY);
-    if (snap?.data) {
-      if (Array.isArray(snap.data.dailyStats)) {
-        setDailyStats(snap.data.dailyStats);
-        setShowingCached(true);
-      }
-      if (snap.data.lastUpdated) {
-        setLastUpdated(new Date(snap.data.lastUpdated));
-      }
-    }
-  }, []);
-
-  // Handle Date Preset Changes
+  // Handle Date Preset Changes (filters read from the cache only — no API)
   const handleDatePresetChange = (preset: DatePreset) => {
     setDatePreset(preset);
     if (preset !== 'custom') {
@@ -238,53 +175,20 @@ export default function App() {
     setDateTo(to);
   };
 
-  // Calculate Aggregated Totals
-  const aggregatedTotals: AggregatedStats = useMemo(() => {
-    let totalImpressions = 0;
-    let totalClicks = 0;
-    let totalMoney = 0;
+  // Everything the charts/tables need is derived from the cached day index.
+  const dailyStats = useMemo(() => {
+    return dayIndex.filter(
+      s => s.date_time !== undefined && s.date_time >= dateFrom && s.date_time <= dateTo
+    );
+  }, [dayIndex, dateFrom, dateTo]);
 
-    dailyStats.forEach(item => {
-      const money = typeof item.money === 'string' ? parseFloat(item.money) : Number(item.money || 0);
-      const impressions = typeof item.impressions === 'string' ? parseFloat(item.impressions) : Number(item.impressions || 0);
-      const clicks = typeof item.clicks === 'string' ? parseFloat(item.clicks) : Number(item.clicks || 0);
-
-      totalMoney += money;
-      totalImpressions += impressions;
-      totalClicks += clicks;
-    });
-
-    return {
-      totalImpressions,
-      totalClicks,
-      totalMoney,
-      avgCpm: calculateCpm(totalMoney, totalImpressions),
-      avgCtr: calculateCtr(totalClicks, totalImpressions),
-      activeDays: dailyStats.length
-    };
-  }, [dailyStats]);
-
-  // Compute Today & Yesterday metrics (from dailyStats or recentStats fallback)
+  // Compute Today & Yesterday metrics from the cache (independent of the
+  // currently selected filter range).
   const todayStr = useMemo(() => getISODateString(new Date()), []);
-  const yesterdayStr = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return getISODateString(d);
-  }, []);
+  const yesterdayStr = useMemo(() => addDaysISO(todayStr, -1), [todayStr]);
 
-  const todayStat = useMemo(() => {
-    return (
-      dailyStats.find(s => s.date_time === todayStr) ||
-      recentStats.find(s => s.date_time === todayStr)
-    );
-  }, [dailyStats, recentStats, todayStr]);
-
-  const yesterdayStat = useMemo(() => {
-    return (
-      dailyStats.find(s => s.date_time === yesterdayStr) ||
-      recentStats.find(s => s.date_time === yesterdayStr)
-    );
-  }, [dailyStats, recentStats, yesterdayStr]);
+  const todayStat = dayIndex.find(s => s.date_time === todayStr);
+  const yesterdayStat = dayIndex.find(s => s.date_time === yesterdayStr);
 
   const todayMoney = todayStat ? (parseFloat(String(todayStat.money)) || 0) : 0;
   const todayImpressions = todayStat ? (parseInt(String(todayStat.impressions), 10) || 0) : 0;
@@ -294,31 +198,70 @@ export default function App() {
   const yesterdayImpressions = yesterdayStat ? (parseInt(String(yesterdayStat.impressions), 10) || 0) : 0;
   const yesterdayCpm = calculateCpm(yesterdayMoney, yesterdayImpressions);
 
-  // Effective Lifetime Earnings (computed from API lifetime statistics or period totals)
+  // Lifetime earnings = total earnings across the cached day index (complete
+  // after the user runs "Load all data" in Settings).
   const effectiveLifetimeEarnings = useMemo(() => {
-    if (apiLifetimeEarnings > 0) return apiLifetimeEarnings;
-    return aggregatedTotals.totalMoney;
-  }, [apiLifetimeEarnings, aggregatedTotals.totalMoney]);
+    return dayIndex.reduce((acc, s) => acc + (parseFloat(String(s.money)) || 0), 0);
+  }, [dayIndex]);
 
-  // Current Balance = Total Lifetime Earnings - Total Withdrawals (configurable in Settings)
-  const currentBalance = useMemo(() => {
-    return effectiveLifetimeEarnings - totalWithdrawals;
-  }, [effectiveLifetimeEarnings, totalWithdrawals]);
+  // Current Balance = Total Lifetime Earnings - Total Withdrawals
+  const currentBalance = effectiveLifetimeEarnings - totalWithdrawals;
 
-  // Monetag holds the last 4 days of earnings. Sum the last 4 distinct daily
-  // rows (from recentStats, already sorted chronologically by the API) to get
-  // the held balance; the rest of the balance is approved / withdrawable.
+  // Held balance = the last HOLD_DAYS *calendar days* of earnings ending at
+  // the newest known day. Exactly the running-date window Monetag withholds —
+  // never the last-N rows (which could straddle 5 calendar days).
   const heldBalance = useMemo(() => {
-    const sorted = [...recentStats]
-      .filter(s => s.date_time)
-      .sort((a, b) => (a.date_time! > b.date_time! ? 1 : -1))
-      .slice(-4);
-    return sorted.reduce((acc, s) => acc + (parseFloat(s.money as any) || 0), 0);
-  }, [recentStats]);
+    if (dayIndex.length === 0) return 0;
+    const newestStr = dayIndex[dayIndex.length - 1].date_time;
+    if (!newestStr) return 0;
 
-  const approvedBalance = useMemo(() => {
-    return Math.max(0, currentBalance - heldBalance);
-  }, [currentBalance, heldBalance]);
+    const byDate = new Map<string, number>();
+    for (const s of dayIndex) {
+      if (s.date_time !== undefined) {
+        byDate.set(s.date_time, parseFloat(String(s.money)) || 0);
+      }
+    }
+
+    let held = 0;
+    for (let i = 0; i < HOLD_DAYS; i++) {
+      held += byDate.get(addDaysISO(newestStr, -i)) ?? 0;
+    }
+    return held;
+  }, [dayIndex]);
+
+  const approvedBalance = Math.max(0, currentBalance - heldBalance);
+
+  // "Load all data" — backfill the entire history into the cache.
+  const handleLoadAllData = useCallback(async () => {
+    if (!hasKey) return;
+    setLoadAllLoading(true);
+    setLoadAllMessage(null);
+    try {
+      const today = getISODateString(new Date());
+      const res = await getAllStatistics({
+        date_from: '2024-01-01',
+        date_to: today,
+        page: 1,
+        page_size: 500,
+        group_by: ['date_time'],
+      });
+      if (res.ok && res.data) {
+        const merged = mergeDayIndex(apiKey, res.data.result ?? []);
+        setDayIndex(merged);
+        setLastUpdated(new Date());
+        setError(null);
+        setShowingCached(false);
+        setReplayKey(k => k + 1);
+        setLoadAllMessage(`Cached ${merged.length} days of history.`);
+      } else {
+        setLoadAllMessage(`Failed: ${res.error ?? 'unknown error'}`);
+      }
+    } catch (err: any) {
+      setLoadAllMessage(`Failed: ${err?.message ?? 'unknown error'}`);
+    } finally {
+      setLoadAllLoading(false);
+    }
+  }, [hasKey, apiKey]);
 
   const filterBar = (
     <FilterBar
@@ -350,7 +293,7 @@ export default function App() {
   }
 
   return (
-    <PullToRefresh onRefresh={fetchStatistics}>
+    <PullToRefresh onRefresh={syncStatistics}>
       <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-800 dark:text-neutral-100 flex flex-col font-sans antialiased transition-colors selection:bg-slate-200 selection:text-slate-900 dark:selection:bg-neutral-800 dark:selection:text-neutral-100">
         {/* Top Application Bar */}
         <Header
@@ -372,7 +315,7 @@ export default function App() {
                 <span className="font-mono text-[11px]">{error}</span>
               </div>
               <button
-                onClick={fetchStatistics}
+                onClick={syncStatistics}
                 className="px-2 py-1 bg-white dark:bg-black border border-slate-300 dark:border-neutral-600 rounded text-slate-900 dark:text-neutral-100 font-medium text-xs hover:bg-slate-50 dark:hover:bg-neutral-800 cursor-pointer shrink-0"
               >
                 Retry
@@ -415,6 +358,7 @@ export default function App() {
                   yesterdayImpressions={yesterdayImpressions}
                   yesterdayCpm={yesterdayCpm}
                   yesterdayDate={yesterdayStr}
+                  replay={replayKey}
                 />
               </motion.div>
             )}
@@ -455,7 +399,11 @@ export default function App() {
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
               >
-                <SettingsPage />
+                <SettingsPage
+                  onLoadAllData={handleLoadAllData}
+                  loadAllLoading={loadAllLoading}
+                  loadAllMessage={loadAllMessage}
+                />
               </motion.div>
             )}
           </AnimatePresence>

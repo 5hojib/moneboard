@@ -66,6 +66,64 @@ export function getISODateString(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+// Returns the ISO date `daysOffset` days away from an ISO date string.
+// All math happens in UTC, so results never shift across timezone boundaries.
+// ISO dates compare lexicographically, so these are safe to sort/range.
+export function addDaysISO(iso: string, daysOffset: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + daysOffset);
+  const yy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+// Lists every ISO date in the inclusive range [fromISO, toISO], ascending.
+export function listDates(fromISO: string, toISO: string): string[] {
+  const dates: string[] = [];
+  for (let d = fromISO; d <= toISO; d = addDaysISO(d, 1)) {
+    dates.push(d);
+  }
+  return dates;
+}
+
+// Returns the subset of [fromISO, toISO] that is NOT present among `knownISO`.
+export function getMissingDates(fromISO: string, toISO: string, knownISO: string[]): string[] {
+  const known = new Set(knownISO);
+  return listDates(fromISO, toISO).filter(d => !known.has(d));
+}
+
+// Groups a list of ISO dates into contiguous ranges of consecutive days,
+// so the API can be called once per range instead of once per day.
+export function groupConsecutiveRanges(dates: string[]): { from: string; to: string }[] {
+  const sorted = [...dates].sort();
+  const ranges: { from: string; to: string }[] = [];
+  let start: string | null = null;
+  let prev: string | null = null;
+
+  for (const d of sorted) {
+    if (start === null) {
+      start = d;
+      prev = d;
+      continue;
+    }
+    if (prev !== null && addDaysISO(prev, 1) === d) {
+      prev = d;
+      continue;
+    }
+    if (start !== null && prev !== null) {
+      ranges.push({ from: start, to: prev });
+    }
+    start = d;
+    prev = d;
+  }
+  if (start !== null && prev !== null) {
+    ranges.push({ from: start, to: prev });
+  }
+  return ranges;
+}
+
 export function getDateRangeForPreset(preset: string): { from: string; to: string } {
   const today = new Date();
   const to = getISODateString(today);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, KeyRound, DollarSign, Monitor, Sun, Moon } from 'lucide-react';
+import { Check, KeyRound, DollarSign, Monitor, Sun, Moon, Database, RefreshCw } from 'lucide-react';
 import { useSettingsContext } from '../context/SettingsContext';
 import { ThemeMode } from '../hooks/useSettings';
 
@@ -17,7 +17,17 @@ function SaveButton({ saved }: { saved: boolean }) {
   );
 }
 
-export default function SettingsPage() {
+interface SettingsPageProps {
+  onLoadAllData?: () => Promise<void>;
+  loadAllLoading?: boolean;
+  loadAllMessage?: string | null;
+}
+
+export default function SettingsPage({
+  onLoadAllData,
+  loadAllLoading = false,
+  loadAllMessage = null,
+}: SettingsPageProps) {
   const { settings, setApiKey, setTotalWithdrawals, setThemeMode } = useSettingsContext();
 
   const [apiKey, setApiKeyInput] = useState(settings.apiKey);
@@ -115,6 +125,38 @@ export default function SettingsPage() {
               className="px-3 py-1.5 rounded bg-slate-900 dark:bg-white text-white dark:text-black text-xs font-medium cursor-pointer transition-colors hover:opacity-90"
             >
               Save
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Section: Data cache */}
+      <section className="bg-white dark:bg-black rounded-2xl transition-colors">
+        <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-900">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-neutral-100">
+            <Database className="w-4 h-4" />
+            Data cache
+          </div>
+        </div>
+        <div className="px-4 py-3 space-y-2.5">
+          <p className="text-[11px] text-slate-400 dark:text-neutral-500 leading-snug">
+            The home, graph and daily tabs read from a local cache so filters
+            never re-hit the API. Load all of your history into the cache to
+            browse any date range, then pull-to-refresh only fetches the days
+            that are missing.
+          </p>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-mono text-slate-400 dark:text-neutral-500">
+              {loadAllMessage ?? ''}
+            </span>
+            <button
+              id="settings-load-all"
+              onClick={onLoadAllData}
+              disabled={loadAllLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-900 dark:bg-white text-white dark:text-black text-xs font-medium cursor-pointer transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-default"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadAllLoading ? 'animate-spin' : ''}`} />
+              {loadAllLoading ? 'Loading…' : 'Load all data'}
             </button>
           </div>
         </div>

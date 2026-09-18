@@ -33,11 +33,12 @@ The app is published as a **sideloadable Android APK** via GitHub Releases. User
 
 ## Architecture notes
 
-- `src/App.tsx` — tab routing (`home` | `daily` | `graph` | `settings`), data fetching with a localStorage cache fallback, Today/Yesterday computation, swipe-to-change-tab. Shows an `OnboardingScreen` when no API key is configured yet.
-- `src/config.ts` — no bundled API key (defaults to empty), build-time override via `VITE_MONETAG_API_KEY`, runtime getters.
-- `src/api/client.ts` — Monetag API calls (direct from the native app).
-- `src/components/` — UI: `Header`, `BottomNav`, `OnboardingScreen`, `EarningsHighlight` (full-screen centered typographic balance hero with odometer animation and the 4-day hold / approved split), `ChartsSection`, `DailyStatsTable`, `FilterBar`, `SettingsPage`, `PullToRefresh`, `Odometer` (rolling digit counter).
-- Home hero balance math: `currentBalance = lifetime − withdrawals`; Monetag holds the last 4 days of earnings, so `heldBalance = sum of last 4 daily rows` and `approvedBalance = currentBalance − heldBalance`.
+- `src/App.tsx` — tab routing (`home` | `daily` | `graph` | `settings`), swipe-to-change-tab, cache-first data layer. Shows an `OnboardingScreen` when no API key is configured yet.
+- `src/utils/apiCache.ts` — day-indexed localStorage cache keyed by API key (`getDayIndex`/`mergeDayIndex`). Charts, tables and filters read from this index only; they never hit the API.
+- `src/api/client.ts` — Monetag API calls (direct from the native app); `getAllStatistics` pages through a range.
+- `src/components/` — UI: `Header`, `BottomNav`, `OnboardingScreen`, `EarningsHighlight` (full-screen centered typographic balance hero with odometer roll + the hold/approved split), `ChartsSection`, `DailyStatsTable`, `FilterBar`, `SettingsPage`, `PullToRefresh`, `Odometer` (rolling digit counter).
+- **Cache model**: pull-to-refresh always re-fetches the last 3 days (today/yesterday settle overnight) and backfills any day missing from the last 30 (`SYNC_WINDOW_DAYS`). The Settings **Load all data** button backfills the whole history into the cache. The odometer replays its roll on every refresh (even when values are unchanged).
+- Home hero balance math: `currentBalance = lifetime − withdrawals`; Monetag holds the last 4 running calendar days, so `heldBalance = sum of exactly the last 4 distinct dates (by date_time)` and `approvedBalance = currentBalance − heldBalance`. The hold is computed from calendar dates, never raw row counts (4 rows can straddle 5 calendar days).
 - `src/context/` — `SettingsContext` (API key/withdrawals/theme persisted to localStorage) and `ThemeContext` (resolved light/dark; also drives the Android status bar style).
 - Settings are persisted under the localStorage key `monetag_settings_v1`.
 
