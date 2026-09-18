@@ -5,7 +5,6 @@ import Header from './components/Header';
 import PullToRefresh from './components/PullToRefresh';
 import BottomNav, { TabId } from './components/BottomNav';
 import EarningsHighlight from './components/EarningsHighlight';
-import KpiGrid from './components/KpiGrid';
 import ChartsSection from './components/ChartsSection';
 import FilterBar from './components/FilterBar';
 import DailyStatsTable from './components/DailyStatsTable';
@@ -60,8 +59,8 @@ export default function App() {
   // Bottom navigation
   const [tab, setTab] = useState<TabId>('home');
 
-  // Left/right swipe moves between tabs (home → graph → daily → settings)
-  const TAB_ORDER: TabId[] = ['home', 'graph', 'daily', 'settings'];
+  // Left/right swipe moves between tabs (home → daily → graph → settings)
+  const TAB_ORDER: TabId[] = ['home', 'daily', 'graph', 'settings'];
   const handleSwipe = useCallback((dir: 'left' | 'right') => {
     setTab(tab => {
       const idx = TAB_ORDER.indexOf(tab);
@@ -391,7 +390,6 @@ export default function App() {
                   yesterdayCpm={yesterdayCpm}
                   yesterdayDate={yesterdayStr}
                 />
-                <KpiGrid stats={aggregatedTotals} />
               </motion.div>
             )}
 

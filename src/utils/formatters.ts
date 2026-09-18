@@ -5,7 +5,7 @@ export function formatCurrency(val: number | string | undefined): string {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
-    maximumFractionDigits: num >= 1000 ? 2 : 4
+    maximumFractionDigits: 2
   }).format(num);
 }
 
