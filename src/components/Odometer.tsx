@@ -1,9 +1,11 @@
 import { memo, useEffect, useRef, useState, type FC } from 'react';
 
 // A single digit column that rolls (odometer-style) to its target value via a
-// vertical strip of 0-9. Uses rAF sequencing so the strip first snaps to the
-// starting digit, then CSS-transitions to the target one. A `replay` tick
-// re-runs the roll from 0 even when the value did not change (pull-to-refresh).
+// vertical strip of 0-9. Rolling is two-phase:
+//   1. snap the strip to the starting digit with NO transition,
+//   2. on the next frame enable the transition and move to the target digit.
+// This gives a clean, visible roll every time — a `replay` tick re-runs it
+// from 0 even when the value did not change (pull-to-refresh).
 interface DigitColumnProps {
   value: number;
   disabled: boolean;
@@ -13,6 +15,7 @@ interface DigitColumnProps {
 
 const DigitColumn: FC<DigitColumnProps> = ({ value, disabled, replay, durationSecs }) => {
   const [display, setDisplay] = useState(value);
+  const [transitioning, setTransitioning] = useState(false);
   const prevValueRef = useRef(value);
   const lastReplayRef = useRef(replay);
   const rafRef = useRef<number | undefined>(undefined);
@@ -23,6 +26,7 @@ const DigitColumn: FC<DigitColumnProps> = ({ value, disabled, replay, durationSe
 
     if (disabled) {
       prevValueRef.current = value;
+      setTransitioning(false);
       setDisplay(value);
       return;
     }
@@ -32,13 +36,24 @@ const DigitColumn: FC<DigitColumnProps> = ({ value, disabled, replay, durationSe
 
     const from = isReplay ? 0 : prevValueRef.current;
     prevValueRef.current = value;
-    if (from === value) return;
+    if (from === value) {
+      setTransitioning(false);
+      setDisplay(value);
+      return;
+    }
 
+    // Phase 1: snap to the start digit with transitions switched off.
+    setTransitioning(false);
     setDisplay(from);
+
+    // Phase 2: once the snap is committed, enable the transition and roll.
     rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = requestAnimationFrame(() => setDisplay(value));
+      rafRef.current = requestAnimationFrame(() => {
+        setTransitioning(true);
+        setDisplay(value);
+      });
     });
-  }, [value, disabled, replay, durationSecs]);
+  }, [value, disabled, replay]);
 
   return (
     <span
@@ -50,7 +65,9 @@ const DigitColumn: FC<DigitColumnProps> = ({ value, disabled, replay, durationSe
         style={{
           lineHeight: 1,
           transform: `translateY(-${display}em)`,
-          transition: `transform ${durationSecs}s cubic-bezier(0.22, 1, 0.36, 1)`,
+          transition: transitioning
+            ? `transform ${durationSecs}s cubic-bezier(0.22, 1, 0.36, 1)`
+            : 'none',
         }}
       >
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => (
