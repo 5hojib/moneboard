@@ -1,16 +1,9 @@
 import {
   getApiKey,
-  getTotalWithdrawals,
   MONETAG_BASE_URL,
   USE_DIRECT_MONETAG,
 } from '../config';
 import type { StatItem } from '../types';
-
-export interface HealthData {
-  hasKey: boolean;
-  maskedKey: string | null;
-  totalWithdrawals: number;
-}
 
 export interface StatisticsQuery {
   date_from: string;
@@ -72,22 +65,6 @@ async function rawFetch(url: string, init: RequestInit, withTimeout: boolean): P
   } finally {
     if (timer) clearTimeout(timer);
   }
-}
-
-export async function getHealth(): Promise<ApiResponse<HealthData>> {
-  if (USE_DIRECT_MONETAG) {
-    const apiKey = getApiKey();
-    return {
-      ok: true,
-      data: {
-        hasKey: Boolean(apiKey),
-        maskedKey: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : null,
-        totalWithdrawals: getTotalWithdrawals(),
-      },
-    };
-  }
-
-  return rawFetch('/api/health', { headers: SAFE_HEADERS }, false);
 }
 
 export async function getStatistics(

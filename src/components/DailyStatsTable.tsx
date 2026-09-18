@@ -8,8 +8,6 @@ import {
 
 interface DailyStatsTableProps {
   stats: StatItem[];
-  dateFrom: string;
-  dateTo: string;
 }
 
 type SortField = 'date_time' | 'impressions' | 'requests' | 'clicks' | 'cpm' | 'money';

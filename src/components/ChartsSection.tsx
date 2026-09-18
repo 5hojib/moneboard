@@ -12,7 +12,7 @@ import {
   ReferenceLine
 } from 'recharts';
 import { StatItem } from '../types';
-import { formatCurrency, formatCompactNumber, calculateCpm, calculateCtr } from '../utils/formatters';
+import { formatCurrency, formatCompactNumber, calculateCpm } from '../utils/formatters';
 import { useTheme } from '../context/ThemeContext';
 
 interface ChartsSectionProps {
@@ -46,9 +46,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
         const money = typeof item.money === 'string' ? parseFloat(item.money) : Number(item.money || 0);
         const impressions = typeof item.impressions === 'string' ? parseFloat(item.impressions) : Number(item.impressions || 0);
         const clicks = typeof item.clicks === 'string' ? parseFloat(item.clicks) : Number(item.clicks || 0);
-        const requests = typeof item.requests === 'string' ? parseFloat(item.requests) : Number(item.requests || 0);
         const cpm = calculateCpm(money, impressions);
-        const ctr = calculateCtr(clicks, impressions);
 
         return {
           date: item.date_time,
@@ -57,8 +55,6 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
           cpm: Number(cpm.toFixed(4)),
           impressions: Math.round(impressions),
           clicks: Math.round(clicks),
-          requests: Math.round(requests),
-          ctr: Number(ctr.toFixed(2)),
         };
       });
   }, [stats]);

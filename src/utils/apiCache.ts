@@ -51,18 +51,3 @@ export function readCache<T>(key: string): { data: T; ageSeconds: number } | nul
     return null;
   }
 }
-
-export function clearCache(): void {
-  const s = storage();
-  if (!s) return;
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < s.length; i++) {
-      const k = s.key(i);
-      if (k && k.startsWith(PREFIX)) keys.push(k);
-    }
-    keys.forEach(k => s.removeItem(k));
-  } catch {
-    // Ignore.
-  }
-}

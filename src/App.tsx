@@ -20,8 +20,7 @@ import {
   getDateRangeForPreset,
   getISODateString,
   calculateCpm,
-  calculateCtr,
-  calculateFillRate
+  calculateCtr
 } from './utils/formatters';
 import { getStatistics } from './api/client';
 import { buildCacheKey, readCache, writeCache } from './utils/apiCache';
@@ -228,34 +227,25 @@ export default function App() {
   // Calculate Aggregated Totals
   const aggregatedTotals: AggregatedStats = useMemo(() => {
     let totalImpressions = 0;
-    let totalRequests = 0;
     let totalClicks = 0;
-    let totalConversions = 0;
     let totalMoney = 0;
 
     dailyStats.forEach(item => {
       const money = typeof item.money === 'string' ? parseFloat(item.money) : Number(item.money || 0);
       const impressions = typeof item.impressions === 'string' ? parseFloat(item.impressions) : Number(item.impressions || 0);
-      const requests = typeof item.requests === 'string' ? parseFloat(item.requests) : Number(item.requests || 0);
       const clicks = typeof item.clicks === 'string' ? parseFloat(item.clicks) : Number(item.clicks || 0);
-      const conversions = typeof item.conversions === 'string' ? parseFloat(item.conversions) : Number(item.conversions || 0);
 
       totalMoney += money;
       totalImpressions += impressions;
-      totalRequests += requests;
       totalClicks += clicks;
-      totalConversions += conversions;
     });
 
     return {
       totalImpressions,
-      totalRequests,
       totalClicks,
-      totalConversions,
       totalMoney,
       avgCpm: calculateCpm(totalMoney, totalImpressions),
       avgCtr: calculateCtr(totalClicks, totalImpressions),
-      fillRate: calculateFillRate(totalImpressions, totalRequests),
       activeDays: dailyStats.length
     };
   }, [dailyStats]);
@@ -420,11 +410,7 @@ export default function App() {
                 className="space-y-3.5"
               >
                 {filterBar}
-                <DailyStatsTable
-                  stats={dailyStats}
-                  dateFrom={dateFrom}
-                  dateTo={dateTo}
-                />
+                <DailyStatsTable stats={dailyStats} />
               </motion.div>
             )}
 

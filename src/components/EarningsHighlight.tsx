@@ -28,61 +28,56 @@ export default function EarningsHighlight({
   yesterdayDate
 }: EarningsHighlightProps) {
   return (
-    <div id="earnings-highlight-section">
+    <section id="earnings-highlight-section" className="pt-6 pb-4 sm:pt-10">
+      {/* Full-screen typographic hero — no card, no surface, just type on the page bg */}
+      <div id="earnings-highlight-hero">
+        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400 dark:text-neutral-500">
+          Current Balance
+        </p>
+
+        <p className="mt-3 text-[52px] sm:text-7xl font-bold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
+          {formatCurrency(currentBalance)}
+        </p>
+
+        <p className="mt-4 text-[11px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
+          Lifetime {formatCurrency(effectiveLifetimeEarnings)}
+          {totalWithdrawals > 0 && (
+            <> · Withdrawn {formatCurrency(totalWithdrawals)}</>
+          )}
+        </p>
+      </div>
+
+      {/* Today & Yesterday — typographic row with hairline dividers */}
       <div
-        id="earnings-highlight-card"
-        className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-black transition-colors"
+        id="earnings-recent-row"
+        className="mt-8 sm:mt-12 grid grid-cols-2 gap-6 border-t border-slate-100 dark:border-neutral-900 pt-6 sm:pt-8"
       >
-        {/* Balance hero */}
-        <div id="earnings-highlight-hero" className="px-5 pt-6 pb-5 sm:px-7 sm:pt-8">
-          <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400 dark:text-neutral-500">
-            Current Balance
+        <div id="earnings-today">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-neutral-500">Today</span>
+            <span className="text-[10px] font-mono text-slate-300 dark:text-neutral-600">{todayDate || 'Today'}</span>
           </div>
-
-          <div className="mt-2 text-4xl sm:text-6xl font-extrabold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
-            {formatCurrency(currentBalance)}
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono text-slate-500 dark:text-neutral-400 tabular-nums">
-            <span>Lifetime {formatCurrency(effectiveLifetimeEarnings)}</span>
-            {totalWithdrawals > 0 && (
-              <>
-                <span className="text-slate-300 dark:text-neutral-700">·</span>
-                <span>Withdrawn {formatCurrency(totalWithdrawals)}</span>
-              </>
-            )}
-          </div>
+          <p className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
+            {formatCurrency(todayMoney)}
+          </p>
+          <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
+            {formatCompactNumber(todayImpressions)} imps · {todayImpressions > 0 ? `${formatCurrency(todayCpm)} CPM` : '—'}
+          </p>
         </div>
 
-        {/* Today & Yesterday */}
-        <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-neutral-900 border-t border-slate-100 dark:border-neutral-900">
-          <div className="px-5 py-3.5 sm:px-7">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-neutral-500">Today</span>
-              <span className="text-[10px] font-mono text-slate-400 dark:text-neutral-500">{todayDate || 'Today'}</span>
-            </div>
-            <div className="mt-1 text-lg sm:text-xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white leading-none">
-              {formatCurrency(todayMoney)}
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
-              {formatCompactNumber(todayImpressions)} imps · {todayImpressions > 0 ? `${formatCurrency(todayCpm)} CPM` : '—'}
-            </div>
+        <div id="earnings-yesterday" className="border-l border-slate-100 dark:border-neutral-900 pl-6">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-neutral-500">Yesterday</span>
+            <span className="text-[10px] font-mono text-slate-300 dark:text-neutral-600">{yesterdayDate || 'Yesterday'}</span>
           </div>
-
-          <div className="px-5 py-3.5 sm:px-7">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-neutral-500">Yesterday</span>
-              <span className="text-[10px] font-mono text-slate-400 dark:text-neutral-500">{yesterdayDate || 'Yesterday'}</span>
-            </div>
-            <div className="mt-1 text-lg sm:text-xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white leading-none">
-              {formatCurrency(yesterdayMoney)}
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
-              {formatCompactNumber(yesterdayImpressions)} imps · {formatCurrency(yesterdayCpm)} CPM
-            </div>
-          </div>
+          <p className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
+            {formatCurrency(yesterdayMoney)}
+          </p>
+          <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
+            {formatCompactNumber(yesterdayImpressions)} imps · {formatCurrency(yesterdayCpm)} CPM
+          </p>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

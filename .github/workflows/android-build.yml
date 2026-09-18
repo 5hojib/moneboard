@@ -14,11 +14,6 @@ on:
         description: 'Total withdrawn USD for the balance calculation (optional, default 0)'
         required: false
         type: number
-      release:
-        description: 'Also create a GitHub Release with the APK'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -60,20 +55,23 @@ jobs:
         run: |
           if [ "${{ github.ref_type }}" = "tag" ]; then
             VER="${GITHUB_REF_NAME#v}"
-            CODE="${{ github.run_number }}"
           else
-            VER="1.0.0-build.${{ github.run_number }}"
-            CODE="${{ github.run_number }}"
+            # Bump the version on every push: <major>.<minor>.<run_number>
+            VER="1.1.${{ github.run_number }}"
           fi
+          CODE="${{ github.run_number }}"
           echo "version_name=$VER" >> "$GITHUB_OUTPUT"
           echo "version_code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "release_tag=v$VER" >> "$GITHUB_OUTPUT"
           echo "apk_name=Monetag-Publisher-$VER.apk" >> "$GITHUB_OUTPUT"
 
       - name: Build release APK (signed with the committed release keystore)
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease \
+            -PversionName=${{ steps.version.outputs.version_name }} \
+            -PversionCode=${{ steps.version.outputs.version_code }}
 
       - name: Upload APK to workflow artifact
         uses: actions/upload-artifact@v4
@@ -82,10 +80,22 @@ jobs:
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
-      - name: Publish APK to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/') || inputs.release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: android/app/build/outputs/apk/release/app-release.apk
-          generate_release_notes: true
-          fail_on_unmatched_files: true
+      - name: Publish APK to GitHub Release (create on first push to this version, update on re-runs)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_TAG="${{ steps.version.outputs.release_tag }}"
+          RELEASE_NAME="Monetag Publisher ${{ steps.version.outputs.version_name }}"
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+
+          # Create the release if it does not exist yet, otherwise just (re)upload the APK.
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists — updating assets."
+            gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber "$APK"
+          else
+            echo "Creating release $RELEASE_TAG."
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "$RELEASE_NAME" \
+              --generate-notes \
+              "$APK"
+          fi

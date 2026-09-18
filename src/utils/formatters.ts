@@ -47,13 +47,6 @@ export function calculateCtr(clicks: number | string | undefined, impressions: n
   return (c / imp) * 100;
 }
 
-export function calculateFillRate(impressions: number | string | undefined, requests: number | string | undefined): number {
-  const imp = typeof impressions === 'string' ? parseFloat(impressions) : Number(impressions || 0);
-  const req = typeof requests === 'string' ? parseFloat(requests) : Number(requests || 0);
-  if (req <= 0) return 0;
-  return Math.min(100, (imp / req) * 100);
-}
-
 export function getISODateString(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -81,20 +74,4 @@ export function getDateRangeForPreset(preset: string): { from: string; to: strin
       return { from: '2024-01-01', to };
     }
   }
-}
-
-export function exportToCSV(filename: string, headers: string[], rows: (string | number)[][]) {
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-  ].join('\n');
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `${filename}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 }

@@ -1,26 +1,3 @@
-export interface SiteItem {
-  id: number;
-  url: string;
-  user_verification_status: number;
-}
-
-export interface ZoneItem {
-  id: number;
-  site_id: number;
-  direction_id: number;
-  site_direction_id: number;
-  zone_type_id: number | null;
-  multitag: boolean;
-  title: string;
-  is_anti_ad_block: number;
-}
-
-export interface CountryItem {
-  id: number;
-  value: string; // ISO 2-letter code e.g. "us", "bd"
-  title: string; // e.g. "United States", "Bangladesh"
-}
-
 export interface StatItem {
   date_time?: string;
   site_id?: string | number;
@@ -41,25 +18,12 @@ export interface StatItem {
   conversions3?: string | number;
 }
 
-export interface StatisticsResponse {
-  result: StatItem[];
-  meta: {
-    total_items: number;
-    total_pages: number;
-    page_size: number;
-    page: number;
-  };
-}
-
 export interface AggregatedStats {
   totalImpressions: number;
-  totalRequests: number;
   totalClicks: number;
-  totalConversions: number;
   totalMoney: number;
   avgCpm: number;
   avgCtr: number;
-  fillRate: number;
   activeDays: number;
 }
 

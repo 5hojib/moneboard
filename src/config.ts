@@ -43,8 +43,3 @@ export function getApiKey(): string {
   const stored = readStored<string>('apiKey');
   return typeof stored === 'string' && stored.trim() ? stored : MONETAG_API_KEY;
 }
-
-export function getTotalWithdrawals(): number {
-  const stored = Number(readStored<number>('totalWithdrawals'));
-  return stored >= 0 ? stored : MONETAG_TOTAL_WITHDRAWALS;
-}
