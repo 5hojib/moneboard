@@ -21,9 +21,9 @@ export default defineConfig(() => {
         ],
         manifest: {
           id: '/',
-          name: 'Monetag Publisher Dashboard',
-          short_name: 'Monetag',
-          description: 'Comprehensive analytics and statistics dashboard for Monetag publishers.',
+          name: 'Moneboard',
+          short_name: 'Moneboard',
+          description: 'Moneboard — an unofficial, read-only earnings dashboard for Monetag publishers.',
           theme_color: '#0f172a',
           background_color: '#0f172a',
           display: 'standalone',

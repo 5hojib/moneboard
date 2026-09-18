@@ -85,7 +85,7 @@ export default function DailyStatsTable({ stats }: DailyStatsTableProps) {
   };
 
   return (
-    <div id="daily-stats-table-container" className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 overflow-hidden transition-colors">
+    <div id="daily-stats-table-container" className="bg-white dark:bg-black rounded-2xl overflow-hidden transition-colors">
       {/* Controls */}
       <div className="px-3.5 py-3 border-b border-slate-200 dark:border-neutral-800 flex flex-col gap-2.5 text-xs">
         <div className="flex items-center justify-between gap-3">

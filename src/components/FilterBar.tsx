@@ -25,7 +25,7 @@ export default function FilterBar({
   return (
     <div id="filter-bar-container" className="flex flex-wrap items-center justify-between gap-3 py-1 text-xs text-slate-600 dark:text-neutral-400">
       {/* Date Presets - segmented control */}
-      <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-white dark:bg-black border border-slate-200 dark:border-neutral-800">
+      <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-white dark:bg-black">
         {presets.map((p) => (
           <button
             key={p.id}

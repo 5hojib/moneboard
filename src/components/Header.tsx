@@ -17,9 +17,7 @@ export default function Header({
         <div className="flex items-center justify-between h-12">
           {/* Brand */}
           <div className="flex items-center gap-2 shrink-0">
-            <span className="font-semibold text-slate-900 dark:text-neutral-100 text-sm tracking-tight leading-none">Monetag</span>
-            <span className="text-slate-300 dark:text-neutral-700 text-xs leading-none select-none">/</span>
-            <span className="text-xs text-slate-500 dark:text-neutral-400 font-normal leading-none">Publisher</span>
+            <span className="font-semibold text-slate-900 dark:text-neutral-100 text-sm tracking-tight leading-none">Moneboard</span>
             {hasKey && (
               <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-neutral-500 shrink-0" title="Connected" />
             )}

@@ -4,7 +4,7 @@ Guidance for AI agents and contributors working in this repository.
 
 ## Project overview
 
-Monetag Publisher Dashboard — a stats dashboard for Monetag publishers. One codebase ships two targets:
+**Moneboard** — an unofficial, read-only earnings dashboard for Monetag publishers (the API key is only used to read a publisher's own statistics). One codebase ships two targets:
 
 - **Web / PWA** (Vite + React 19 + Tailwind v4)
 - **Native Android** (Capacitor shell wrapping the same web app, API calls go directly to `https://api.monetag.com/v5` with the bundled API key)

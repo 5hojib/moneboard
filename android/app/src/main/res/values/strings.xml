@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Monetag Publisher</string>
-    <string name="title_activity_main">Monetag Publisher</string>
+    <string name="app_name">Moneboard</string>
+    <string name="title_activity_main">Moneboard</string>
     <string name="package_name">com.monetag.publisher</string>
     <string name="custom_url_scheme">com.monetag.publisher</string>
 </resources>

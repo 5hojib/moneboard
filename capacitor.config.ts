@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.monetag.publisher',
-  appName: 'Monetag Publisher',
+  appName: 'Moneboard',
   webDir: 'dist/www',
   android: {
     // All network requests are HTTPS (api.monetag.com); mixed content not needed.

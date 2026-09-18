@@ -53,7 +53,7 @@ export default function SettingsPage() {
   return (
     <div id="settings-page" className="space-y-4">
       {/* Section: Monetag API key */}
-      <section className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 transition-colors">
+      <section className="bg-white dark:bg-black rounded-2xl transition-colors">
         <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-900">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-neutral-100">
             <KeyRound className="w-4 h-4" />
@@ -89,7 +89,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Section: Total withdrawals */}
-      <section className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 transition-colors">
+      <section className="bg-white dark:bg-black rounded-2xl transition-colors">
         <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-900">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-neutral-100">
             <DollarSign className="w-4 h-4" />
@@ -125,7 +125,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Section: Theme */}
-      <section className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 transition-colors">
+      <section className="bg-white dark:bg-black rounded-2xl transition-colors">
         <div className="px-4 py-3 border-b border-slate-100 dark:border-neutral-900">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-neutral-100">
             <span className="flex w-4 h-4 items-center justify-center">
@@ -135,7 +135,7 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="px-4 py-3">
-          <div id="theme-switcher" className="h-10 flex items-center bg-slate-100 dark:bg-neutral-900 p-0.5 rounded-2xl border border-slate-200 dark:border-neutral-800 text-xs">
+          <div id="theme-switcher" className="h-10 flex items-center bg-slate-100 dark:bg-neutral-900 p-0.5 rounded-2xl text-xs">
             {themes.map((t) => {
               const Icon = t.icon;
               const active = settings.themeMode === t.id;
@@ -162,7 +162,7 @@ export default function SettingsPage() {
 
       {/* App info */}
       <p className="text-[11px] text-slate-400 dark:text-neutral-600 text-center pt-1">
-        Monetag Publisher Dashboard · settings are stored on this device
+        Moneboard · unofficial read-only dashboard · settings are stored on this device
       </p>
     </div>
   );

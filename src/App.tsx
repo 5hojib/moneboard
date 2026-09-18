@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useTouchSwipe } from './hooks/useTouchSwipe';
 import { AnimatePresence, motion } from 'motion/react';
 import Header from './components/Header';
 import PullToRefresh from './components/PullToRefresh';
@@ -58,6 +59,17 @@ export default function App() {
 
   // Bottom navigation
   const [tab, setTab] = useState<TabId>('home');
+
+  // Left/right swipe moves between tabs (home → graph → daily → settings)
+  const TAB_ORDER: TabId[] = ['home', 'graph', 'daily', 'settings'];
+  const handleSwipe = useCallback((dir: 'left' | 'right') => {
+    setTab(tab => {
+      const idx = TAB_ORDER.indexOf(tab);
+      const next = dir === 'left' ? idx + 1 : idx - 1;
+      return next >= 0 && next < TAB_ORDER.length ? TAB_ORDER[next] : tab;
+    });
+  }, []);
+  useTouchSwipe(handleSwipe);
 
   // App state - Default to 7 days stats
   const [datePreset, setDatePreset] = useState<DatePreset>('7d');
@@ -302,14 +314,14 @@ export default function App() {
   );
 
   const loadingPanel = (
-    <div className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 p-12 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
+    <div className="bg-white dark:bg-black rounded-2xl p-8 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
       Loading analytics...
     </div>
   );
 
   const isEmpty = dailyStats.length === 0 && !isLoading;
   const emptyPanel = (
-    <div className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 p-10 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
+    <div className="bg-white dark:bg-black rounded-2xl p-6 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
       No data in the selected range.
     </div>
   );
@@ -326,12 +338,12 @@ export default function App() {
 
         {/* Main Container */}
         <main
-          className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-3.5"
+          className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-3 space-y-3"
           style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
         >
           {/* Error Notification Banner */}
           {error && tab !== 'settings' && (
-            <div className="p-3 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-between gap-3 text-slate-800 dark:text-neutral-200 text-xs">
+            <div className="p-3 rounded-xl bg-slate-100 dark:bg-neutral-900 flex items-center justify-between gap-3 text-slate-800 dark:text-neutral-200 text-xs">
               <div>
                 <span className="font-semibold">Error: </span>
                 <span className="font-mono text-[11px]">{error}</span>
@@ -347,7 +359,7 @@ export default function App() {
 
           {/* Offline Cached Data Indicator */}
           {showingCached && !error && tab !== 'settings' && (
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-between gap-3 text-slate-500 dark:text-neutral-400 text-[11px] font-mono">
+            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-neutral-900 flex items-center justify-between gap-3 text-slate-500 dark:text-neutral-400 text-[11px] font-mono">
               <span>
                 Offline — showing cached data.
                 {lastUpdated && ` Last synced ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
@@ -364,7 +376,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="space-y-3.5"
+                className="space-y-3"
               >
                 <EarningsHighlight
                   currentBalance={currentBalance}
@@ -379,10 +391,7 @@ export default function App() {
                   yesterdayCpm={yesterdayCpm}
                   yesterdayDate={yesterdayStr}
                 />
-                <KpiGrid
-                  stats={aggregatedTotals}
-                  selectedDaysCount={aggregatedTotals.activeDays}
-                />
+                <KpiGrid stats={aggregatedTotals} />
               </motion.div>
             )}
 
@@ -393,7 +402,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="space-y-3.5"
+                className="space-y-3"
               >
                 {filterBar}
                 {isLoading && dailyStats.length === 0 && !error ? loadingPanel : isEmpty ? emptyPanel : <ChartsSection stats={dailyStats} />}
@@ -407,7 +416,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="space-y-3.5"
+                className="space-y-3"
               >
                 {filterBar}
                 <DailyStatsTable stats={dailyStats} />
