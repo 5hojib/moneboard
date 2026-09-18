@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import Header from './components/Header';
+import PullToRefresh from './components/PullToRefresh';
 import EarningsHighlight from './components/EarningsHighlight';
 import KpiGrid from './components/KpiGrid';
 import ChartsSection from './components/ChartsSection';
@@ -303,15 +304,14 @@ export default function App() {
   }, [effectiveLifetimeEarnings, totalWithdrawals]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-800 dark:text-neutral-100 flex flex-col font-sans antialiased transition-colors selection:bg-emerald-100 selection:text-emerald-900 dark:selection:bg-neutral-800 dark:selection:text-neutral-100">
-      {/* Top Application Bar */}
-      <Header
-        onRefresh={fetchStatistics}
-        isLoading={isLoading}
-        lastUpdated={lastUpdated}
-        hasKey={hasKey}
-        maskedKey={maskedKey}
-      />
+    <PullToRefresh onRefresh={fetchStatistics}>
+      <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-800 dark:text-neutral-100 flex flex-col font-sans antialiased transition-colors selection:bg-emerald-100 selection:text-emerald-900 dark:selection:bg-neutral-800 dark:selection:text-neutral-100">
+        {/* Top Application Bar */}
+        <Header
+          lastUpdated={lastUpdated}
+          hasKey={hasKey}
+          maskedKey={maskedKey}
+        />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-3.5 sm:space-y-4">
@@ -411,12 +411,13 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-neutral-900 pt-4 mt-8" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-slate-400 dark:text-neutral-500">
-          <span>Monetag SSP v5</span>
-          <span className="font-mono text-[11px]">EST</span>
-        </div>
-      </footer>
-    </div>
+        <footer className="border-t border-slate-200 dark:border-neutral-900 pt-4 mt-8" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-slate-400 dark:text-neutral-500">
+            <span>Monetag SSP v5</span>
+            <span className="font-mono text-[11px]">EST</span>
+          </div>
+        </footer>
+      </div>
+    </PullToRefresh>
   );
 }
