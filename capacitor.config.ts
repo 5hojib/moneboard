@@ -5,7 +5,10 @@ const config: CapacitorConfig = {
   appName: 'Monetag Publisher',
   webDir: 'dist/www',
   android: {
-    allowMixedContent: true
+    // All network requests are HTTPS (api.monetag.com); mixed content not needed.
+    // Disabling also removes android:usesCleartextTraffic from the Android manifest,
+    // which helps avoid Play Protect flagging the APK on install.
+    allowMixedContent: false
   },
   server: {
     androidScheme: 'https'

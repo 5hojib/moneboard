@@ -25,7 +25,7 @@ export default function FilterBar({
   return (
     <div id="filter-bar-container" className="flex flex-wrap items-center justify-between gap-3 py-1 text-xs text-slate-600 dark:text-neutral-400">
       {/* Date Presets - segmented control */}
-      <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-white dark:bg-black border border-slate-200 dark:border-neutral-800 shadow-sm">
+      <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-white dark:bg-black border border-slate-200 dark:border-neutral-800">
         {presets.map((p) => (
           <button
             key={p.id}
@@ -33,7 +33,7 @@ export default function FilterBar({
             onClick={() => onDatePresetChange(p.id)}
             className={`px-2.5 sm:px-3 py-1 text-xs rounded-full transition-colors cursor-pointer select-none ${
               datePreset === p.id
-                ? 'bg-slate-900 dark:bg-white text-white dark:text-black font-semibold shadow-sm'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-black font-semibold'
                 : 'text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >

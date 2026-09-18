@@ -31,24 +31,23 @@ export default function EarningsHighlight({
     <div id="earnings-highlight-section">
       <div
         id="earnings-highlight-card"
-        className="rounded-3xl bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700 text-white shadow-lg shadow-purple-900/20 overflow-hidden transition-colors"
+        className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-black transition-colors"
       >
         {/* Balance hero */}
-        <div className="px-5 pt-6 pb-5 sm:px-7 sm:pt-8">
-          <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-300" />
+        <div id="earnings-highlight-hero" className="px-5 pt-6 pb-5 sm:px-7 sm:pt-8">
+          <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400 dark:text-neutral-500">
             Current Balance
           </div>
 
-          <div className="mt-2 text-4xl sm:text-6xl font-extrabold tracking-tight tabular-nums leading-none">
+          <div className="mt-2 text-4xl sm:text-6xl font-extrabold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
             {formatCurrency(currentBalance)}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono text-white/75 tabular-nums">
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono text-slate-500 dark:text-neutral-400 tabular-nums">
             <span>Lifetime {formatCurrency(effectiveLifetimeEarnings)}</span>
             {totalWithdrawals > 0 && (
               <>
-                <span className="text-white/30">·</span>
+                <span className="text-slate-300 dark:text-neutral-700">·</span>
                 <span>Withdrawn {formatCurrency(totalWithdrawals)}</span>
               </>
             )}
@@ -56,29 +55,29 @@ export default function EarningsHighlight({
         </div>
 
         {/* Today & Yesterday */}
-        <div className="grid grid-cols-2 gap-3 px-4 sm:px-6 pb-5">
-          <div className="rounded-2xl bg-white/15 backdrop-blur-md px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-white/70">Today</span>
-              <span className="text-[10px] font-mono text-white/60">{todayDate || 'Today'}</span>
+        <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-neutral-900 border-t border-slate-100 dark:border-neutral-900">
+          <div className="px-5 py-3.5 sm:px-7">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-neutral-500">Today</span>
+              <span className="text-[10px] font-mono text-slate-400 dark:text-neutral-500">{todayDate || 'Today'}</span>
             </div>
-            <div className="mt-1.5 text-lg sm:text-xl font-bold tabular-nums tracking-tight">
+            <div className="mt-1 text-lg sm:text-xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white leading-none">
               {formatCurrency(todayMoney)}
             </div>
-            <div className="mt-0.5 text-[10px] font-mono text-white/65 tabular-nums">
+            <div className="mt-1 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
               {formatCompactNumber(todayImpressions)} imps · {todayImpressions > 0 ? `${formatCurrency(todayCpm)} CPM` : '—'}
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/15 backdrop-blur-md px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-white/70">Yesterday</span>
-              <span className="text-[10px] font-mono text-white/60">{yesterdayDate || 'Yesterday'}</span>
+          <div className="px-5 py-3.5 sm:px-7">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-neutral-500">Yesterday</span>
+              <span className="text-[10px] font-mono text-slate-400 dark:text-neutral-500">{yesterdayDate || 'Yesterday'}</span>
             </div>
-            <div className="mt-1.5 text-lg sm:text-xl font-bold tabular-nums tracking-tight">
+            <div className="mt-1 text-lg sm:text-xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white leading-none">
               {formatCurrency(yesterdayMoney)}
             </div>
-            <div className="mt-0.5 text-[10px] font-mono text-white/65 tabular-nums">
+            <div className="mt-1 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
               {formatCompactNumber(yesterdayImpressions)} imps · {formatCurrency(yesterdayCpm)} CPM
             </div>
           </div>

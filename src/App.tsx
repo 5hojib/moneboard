@@ -326,7 +326,7 @@ export default function App() {
 
   return (
     <PullToRefresh onRefresh={fetchStatistics}>
-      <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-800 dark:text-neutral-100 flex flex-col font-sans antialiased transition-colors selection:bg-emerald-100 selection:text-emerald-900 dark:selection:bg-neutral-800 dark:selection:text-neutral-100">
+      <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-800 dark:text-neutral-100 flex flex-col font-sans antialiased transition-colors selection:bg-slate-200 selection:text-slate-900 dark:selection:bg-neutral-800 dark:selection:text-neutral-100">
         {/* Top Application Bar */}
         <Header
           lastUpdated={lastUpdated}
@@ -341,14 +341,14 @@ export default function App() {
         >
           {/* Error Notification Banner */}
           {error && tab !== 'settings' && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 flex items-center justify-between gap-3 text-rose-800 dark:text-rose-200 text-xs">
+            <div className="p-3 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-between gap-3 text-slate-800 dark:text-neutral-200 text-xs">
               <div>
                 <span className="font-semibold">Error: </span>
                 <span className="font-mono text-[11px]">{error}</span>
               </div>
               <button
                 onClick={fetchStatistics}
-                className="px-2 py-1 bg-white dark:bg-rose-900/40 border border-rose-300 dark:border-rose-800/80 rounded text-rose-900 dark:text-rose-100 font-medium text-xs hover:bg-rose-50 dark:hover:bg-rose-900 cursor-pointer shrink-0"
+                className="px-2 py-1 bg-white dark:bg-black border border-slate-300 dark:border-neutral-600 rounded text-slate-900 dark:text-neutral-100 font-medium text-xs hover:bg-slate-50 dark:hover:bg-neutral-800 cursor-pointer shrink-0"
               >
                 Retry
               </button>
@@ -357,7 +357,7 @@ export default function App() {
 
           {/* Offline Cached Data Indicator */}
           {showingCached && !error && tab !== 'settings' && (
-            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex items-center justify-between gap-3 text-amber-800 dark:text-amber-200 text-[11px] font-mono">
+            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-between gap-3 text-slate-500 dark:text-neutral-400 text-[11px] font-mono">
               <span>
                 Offline — showing cached data.
                 {lastUpdated && ` Last synced ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}

@@ -32,9 +32,9 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
 
   const gridColor = isDark ? '#171717' : '#f1f5f9';
   const axisColor = isDark ? '#525252' : '#94a3b8';
-  const strokeColor = isDark ? '#38bdf8' : '#0f172a';
-  const fillColor = isDark ? 'rgba(56, 189, 248, 0.08)' : '#f1f5f9';
-  const yAxisLineColor = isDark ? '#38bdf8' : '#0284c7';
+  const strokeColor = isDark ? '#e5e5e5' : '#0f172a';
+  const fillColor = isDark ? 'rgba(245, 245, 245, 0.10)' : '#f1f5f9';
+  const yAxisLineColor = isDark ? '#a3a3a3' : '#64748b';
   const xAxisLineColor = isDark ? '#404040' : '#cbd5e1';
 
   // Process and sort daily data chronologically
@@ -114,7 +114,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-slate-900 dark:bg-black text-white px-3 py-2 rounded text-xs space-y-1 font-mono border border-slate-800 dark:border-neutral-800 shadow-xl">
+        <div className="bg-slate-900 dark:bg-black text-white px-3 py-2 rounded text-xs space-y-1 font-mono border border-slate-800 dark:border-neutral-800">
           <div className="text-slate-400 dark:text-neutral-500 text-[11px] pb-1 border-b border-slate-800 dark:border-neutral-800">
             {data.date}
           </div>
@@ -142,7 +142,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
 
   if (chartData.length === 0) {
     return (
-      <div className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-sm p-6 text-center text-xs text-slate-500 dark:text-neutral-400">
+      <div className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 p-6 text-center text-xs text-slate-500 dark:text-neutral-400">
         No statistics available for the selected period.
       </div>
     );
@@ -158,7 +158,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
   return (
     <div
       id="charts-section"
-      className="w-full bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-sm p-4 transition-colors select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none [&_*]:outline-none [&_*]:focus:outline-none [&_*]:focus:ring-0 [&_svg]:outline-none"
+      className="w-full bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 p-4 transition-colors select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none [&_*]:outline-none [&_*]:focus:outline-none [&_*]:focus:ring-0 [&_svg]:outline-none"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <div className="flex items-center justify-between mb-4">
@@ -173,7 +173,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
               onClick={() => handleMetricChange(m.id)}
               className={`px-2.5 py-1 text-xs rounded-full transition-colors cursor-pointer select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none ${
                 activeMetric === m.id
-                  ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-sm'
+                  ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold'
                   : 'text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}

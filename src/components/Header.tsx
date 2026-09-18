@@ -21,7 +21,7 @@ export default function Header({
             <span className="text-slate-300 dark:text-neutral-700 text-xs leading-none select-none">/</span>
             <span className="text-xs text-slate-500 dark:text-neutral-400 font-normal leading-none">Publisher</span>
             {hasKey && (
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Connected" />
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-neutral-500 shrink-0" title="Connected" />
             )}
           </div>
 

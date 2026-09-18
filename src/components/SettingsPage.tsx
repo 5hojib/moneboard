@@ -9,7 +9,7 @@ function SaveButton({ saved }: { saved: boolean }) {
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
         saved
-          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+          ? 'bg-slate-100 text-slate-900 dark:bg-neutral-900 dark:text-neutral-100'
           : 'text-slate-400 dark:text-neutral-500'
       }`}
     >
@@ -147,7 +147,7 @@ export default function SettingsPage() {
                   onClick={() => setThemeMode(t.id)}
                   className={`flex-1 h-full px-2 rounded flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none leading-none ${
                     active
-                      ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-white font-medium shadow-sm'
+                      ? 'bg-white dark:bg-neutral-800 text-slate-900 dark:text-white font-medium'
                       : 'text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white'
                   }`}
                 >

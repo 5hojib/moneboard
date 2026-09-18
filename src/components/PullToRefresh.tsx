@@ -106,7 +106,7 @@ export default function PullToRefresh({
             className="fixed top-0 left-0 right-0 z-40 flex justify-center pointer-events-none"
             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 64px)' }}
           >
-            <div className="h-10 w-10 rounded-full bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 shadow-lg flex items-center justify-center">
+            <div className="h-10 w-10 rounded-full bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 flex items-center justify-center">
               <RefreshCw
                 className={`w-5 h-5 text-slate-600 dark:text-neutral-300 ${refreshing ? 'animate-spin' : ''}`}
                 style={refreshing ? undefined : { transform: `rotate(${rotationDeg}deg)` }}

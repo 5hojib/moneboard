@@ -12,7 +12,7 @@ export default function KpiGrid({ stats, selectedDaysCount }: KpiGridProps) {
   return (
     <div
       id="kpi-compact-strip"
-      className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-sm transition-colors"
+      className="bg-white dark:bg-black rounded-2xl border border-slate-200 dark:border-neutral-800 transition-colors"
     >
       <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-neutral-900">
         {/* Ad Impressions */}

@@ -1,5 +1,18 @@
 apply plugin: 'com.android.application'
 
+// Release signing keystore. Falls back to the debug key only when the
+// keystore file or the properties are missing (e.g. a fresh clone before
+// android/keystore is present). The committed keystore is a dedicated
+// release key so Play Protect does NOT treat the APK as debug-signed.
+def ksProps = new Properties()
+def ksPropsFile = rootProject.file('keystore/keystore.properties')
+def hasKeystore = false
+if (ksPropsFile.exists()) {
+    ksProps.load(new FileInputStream(ksPropsFile))
+    def ksFile = file(ksProps['storeFile'])
+    hasKeystore = ksFile.exists()
+}
+
 android {
     namespace = "com.monetag.publisher"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,13 +29,25 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasKeystore) {
+                storeFile file(ksProps['storeFile'])
+                storePassword ksProps['storePassword']
+                storeType ksProps['storeType']
+                keyAlias ksProps['keyAlias']
+                keyPassword ksProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            // No keystore credentials required — the release APK is signed with
-            // the standard debug key so it is always installable via sideload.
-            signingConfig signingConfigs.debug
+            // Signed with the dedicated release key stored in android/keystore
+            // so the APK passes Play Protect's debug-key scan. Falls back to the
+            // debug key only if the keystore is not present.
+            signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
         }
     }
 }
