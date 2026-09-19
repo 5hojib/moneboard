@@ -6,9 +6,10 @@ export interface ChartWindow {
   end: number;
 }
 
-// Clamps a [start, end) window (inclusive-start / exclusive-end indices)
-// into the valid range for `count` items, keeping the span between minSpan
-// and count. Returns a new ChartWindow object.
+// Clamps a [start, end) window into the valid range for `count` items,
+// keeping the span between minSpan and count. Works with fractional
+// (smooth) indices — the caller rounds when slicing actual data rows.
+// Returns a new ChartWindow object.
 export function clampChartWindow(
   start: number,
   end: number,
@@ -86,7 +87,7 @@ export function usePanZoom({ count, window, onChange, minSpan }: UsePanZoomOptio
       originRef.current = {
         win: { ...stateRef.current.window },
         dist,
-        midIndex: Math.max(0, Math.min(stateRef.current.count - 1, Math.round(frac * stateRef.current.count))),
+        midIndex: Math.max(0, Math.min(stateRef.current.count - 1, frac * stateRef.current.count)),
       };
     } else {
       originRef.current = {
@@ -121,17 +122,17 @@ export function usePanZoom({ count, window, onChange, minSpan }: UsePanZoomOptio
       const midX = (pts[0].x + pts[1].x) / 2;
       const anchorCur = Math.max(
         0,
-        Math.min(state.count - 1, Math.round(((midX - rect.left) / width) * state.count))
+        Math.min(state.count - 1, ((midX - rect.left) / width) * state.count)
       );
       const ratio = dist / origin.dist;
       const L0 = Math.max(1, origin.win.end - origin.win.start);
-      const L = Math.max(state.minSpan, Math.min(state.count, Math.round(L0 / ratio)));
+      const L = Math.max(state.minSpan, Math.min(state.count, L0 / ratio));
       const s0 = origin.win.start;
-      const newStart = anchorCur - Math.round((origin.midIndex - s0) * (L / L0));
+      const newStart = anchorCur - (origin.midIndex - s0) * (L / L0);
       state.onChange(clamp(newStart, newStart + L));
     } else if (pts.length === 1) {
       const dxDays = ((pts[0].x - pts[0].initX) / width) * state.count;
-      const shift = Math.round(dxDays);
+      const shift = dxDays;
       const { start, end } = origin.win;
       const span = end - start;
       if (span < state.count) {

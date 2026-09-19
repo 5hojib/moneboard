@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { PointerEvent as ReactPointerEvent, SyntheticEvent } from 'react';
 import {
   ResponsiveContainer,
@@ -23,7 +23,7 @@ interface ChartsSectionProps {
 
 type MetricId = 'revenue' | 'cpm' | 'impressions' | 'clicks';
 
-const LAST_DAYS = 30;
+const DEFAULT_DAYS = 30;
 const MIN_SPAN = 5;
 
 // Stops the app-level touch swipe / pull-to-refresh listeners (attached on
@@ -48,12 +48,12 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
   const yAxisLineColor = isDark ? '#a3a3a3' : '#64748b';
   const xAxisLineColor = isDark ? '#404040' : '#cbd5e1';
 
-  // All 30 days are the source of truth for the chart. The window slices it.
+  // The scroller shows the whole cached history; the main chart only the
+  // visible slice. Every cached day is the source of truth.
   const chartData = useMemo(() => {
     return [...stats]
       .filter(item => item.date_time)
       .sort((a, b) => (a.date_time! > b.date_time! ? 1 : -1))
-      .slice(-LAST_DAYS)
       .map(item => {
         const money = typeof item.money === 'string' ? parseFloat(item.money) : Number(item.money || 0);
         const impressions = typeof item.impressions === 'string' ? parseFloat(item.impressions) : Number(item.impressions || 0);
@@ -73,18 +73,37 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
 
   const count = chartData.length;
 
-  // Visible window over the 30 days — shared by the main chart and the
-  // scroller. Dragging pans it, pinching (or pulling the scroller edges)
-  // squeezes it. Start/end are indices into chartData (end exclusive).
-  const [window, setWindow] = useState<ChartWindow>({ start: 0, end: count });
+  // Visible window over the whole history, in fractional day indices
+  // (rounded only when slicing rows, so the scroller overlay glides
+  // smoothly). Defaults to the trailing DEFAULT_DAYS. Dragging pans it,
+  // pinching (or pulling the scroller edges) squeezes it.
+  const [window, setWindow] = useState<ChartWindow>(() => ({
+    start: Math.max(0, count - DEFAULT_DAYS),
+    end: count,
+  }));
+  const interactedRef = useRef(false);
+  const markWindowChange = useCallback((w: ChartWindow) => {
+    interactedRef.current = true;
+    setWindow(w);
+  }, []);
+
   useEffect(() => {
-    setWindow(w => clampChartWindow(w.start, w.end, count, MIN_SPAN));
+    setWindow(prev => {
+      if (count <= 0) return { start: 0, end: 0 };
+      // Untouched window (first load / after reset) tracks the latest data
+      // and always shows the trailing DEFAULT_DAYS.
+      if (!interactedRef.current) {
+        return { start: Math.max(0, count - DEFAULT_DAYS), end: count };
+      }
+      return clampChartWindow(prev.start, prev.end, count, MIN_SPAN);
+    });
   }, [count]);
 
-  const visible = useMemo(
-    () => window.end > window.start ? chartData.slice(window.start, window.end) : [],
-    [chartData, window]
-  );
+  const visible = useMemo(() => {
+    const start = Math.max(0, Math.round(window.start));
+    const end = Math.min(count, Math.round(window.end));
+    return end > start ? chartData.slice(start, end) : [];
+  }, [chartData, window, count]);
 
   const metricKey: Record<MetricId, 'money' | 'cpm' | 'impressions' | 'clicks'> = {
     revenue: 'money',
@@ -94,9 +113,9 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
   };
 
   // Drag-to-pan / pinch-to-zoom on the main chart plot.
-  const main = usePanZoom({ count, window, onChange: setWindow, minSpan: MIN_SPAN });
+  const main = usePanZoom({ count, window, onChange: markWindowChange, minSpan: MIN_SPAN });
   // Same gestures on the scroller below the chart.
-  const scroller = usePanZoom({ count, window, onChange: setWindow, minSpan: MIN_SPAN });
+  const scroller = usePanZoom({ count, window, onChange: markWindowChange, minSpan: MIN_SPAN });
 
   // Drag the scroller's edge handles to resize ("squeeze") the window.
   const edgeRef = useRef<{ edge: 'left' | 'right'; startX: number; startWin: ChartWindow } | null>(null);
@@ -116,16 +135,21 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
     const el = scroller.containerRef.current;
     if (!r || !el) return;
     const rect = el.getBoundingClientRect();
-    const delta = Math.round(((e.clientX - r.startX) / Math.max(1, rect.width)) * count);
+    const delta = ((e.clientX - r.startX) / Math.max(1, rect.width)) * count;
     if (r.edge === 'left') {
-      setWindow(clampChartWindow(r.startWin.start + delta, r.startWin.end, count, MIN_SPAN));
+      markWindowChange(clampChartWindow(r.startWin.start + delta, r.startWin.end, count, MIN_SPAN));
     } else {
-      setWindow(clampChartWindow(r.startWin.start, r.startWin.end + delta, count, MIN_SPAN));
+      markWindowChange(clampChartWindow(r.startWin.start, r.startWin.end + delta, count, MIN_SPAN));
     }
   };
 
   const handleEdgeUp = () => {
     edgeRef.current = null;
+  };
+
+  const handleReset = () => {
+    interactedRef.current = false;
+    setWindow({ start: Math.max(0, count - DEFAULT_DAYS), end: count });
   };
 
   const handleMetricChange = (metricId: MetricId) => {
@@ -249,6 +273,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
           strokeWidth={1.5}
           fill={fillColor}
           activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
+          isAnimationActive={false}
         />
       </AreaChart>
     ) : (
@@ -276,14 +301,17 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
           strokeWidth={1.5}
           dot={false}
           activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
+          isAnimationActive={false}
         />
       </LineChart>
     );
 
-  const isFull = window.start === 0 && window.end >= count;
-  const spanDays = window.end - window.start;
-  const fromLabel = chartData[window.start]?.displayDate ?? '';
-  const toLabel = chartData[Math.max(window.start, window.end - 1)]?.displayDate ?? '';
+  const isFull = window.start <= 0.001 && window.end >= count - 0.001;
+  const fromIdx = Math.max(0, Math.round(window.start));
+  const toIdx = Math.min(count - 1, Math.round(window.end) - 1);
+  const spanDays = Math.min(count, Math.round(window.end - window.start));
+  const fromLabel = chartData[fromIdx]?.displayDate ?? '';
+  const toLabel = chartData[toIdx]?.displayDate ?? '';
   const windowLeft = `${(window.start / count) * 100}%`;
   const windowWidth = `${((window.end - window.start) / count) * 100}%`;
 
@@ -307,7 +335,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
           {!isFull && (
             <button
               id="chart-reset-zoom"
-              onClick={() => setWindow({ start: 0, end: count })}
+              onClick={handleReset}
               className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-slate-200 dark:border-neutral-800 text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white cursor-pointer select-none"
             >
               Reset
@@ -361,7 +389,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* Scroller — mini overview of all 30 days with a draggable/squeezable window */}
+      {/* Scroller — mini overview of the whole history with a draggable/squeezable window */}
       <div
         {...scrollerProps}
         onTouchStart={swallowTouch}
@@ -423,7 +451,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
       </div>
 
       <p className="mt-2 text-[10px] font-mono text-slate-400 dark:text-neutral-600 sm:hidden select-none">
-        Last 30 days · drag to scroll · pinch or pull the edges to zoom
+        All days · drag the scroller to scroll · pinch or pull the edges to zoom
       </p>
     </div>
   );
