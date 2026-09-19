@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import type { PointerEvent as ReactPointerEvent, SyntheticEvent } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -14,13 +15,23 @@ import {
 import { StatItem } from '../types';
 import { formatCurrency, formatCompactNumber, calculateCpm } from '../utils/formatters';
 import { useTheme } from '../context/ThemeContext';
+import { usePanZoom, clampChartWindow, ChartWindow } from '../hooks/usePanZoom';
 
 interface ChartsSectionProps {
   stats: StatItem[];
 }
 
+type MetricId = 'revenue' | 'cpm' | 'impressions' | 'clicks';
+
+const LAST_DAYS = 30;
+const MIN_SPAN = 5;
+
+// Stops the app-level touch swipe / pull-to-refresh listeners (attached on
+// `window`) from firing when a gesture begins inside the interactive chart.
+const swallowTouch = (e: SyntheticEvent) => e.stopPropagation();
+
 export default function ChartsSection({ stats }: ChartsSectionProps) {
-  const [activeMetric, setActiveMetric] = useState<'revenue' | 'cpm' | 'impressions' | 'clicks'>('revenue');
+  const [activeMetric, setActiveMetric] = useState<MetricId>('revenue');
   const [activePoint, setActivePoint] = useState<{
     date: string;
     displayDate: string;
@@ -37,11 +48,12 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
   const yAxisLineColor = isDark ? '#a3a3a3' : '#64748b';
   const xAxisLineColor = isDark ? '#404040' : '#cbd5e1';
 
-  // Process and sort daily data chronologically
+  // All 30 days are the source of truth for the chart. The window slices it.
   const chartData = useMemo(() => {
     return [...stats]
       .filter(item => item.date_time)
       .sort((a, b) => (a.date_time! > b.date_time! ? 1 : -1))
+      .slice(-LAST_DAYS)
       .map(item => {
         const money = typeof item.money === 'string' ? parseFloat(item.money) : Number(item.money || 0);
         const impressions = typeof item.impressions === 'string' ? parseFloat(item.impressions) : Number(item.impressions || 0);
@@ -59,7 +71,64 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
       });
   }, [stats]);
 
-  const handleMetricChange = (metricId: 'revenue' | 'cpm' | 'impressions' | 'clicks') => {
+  const count = chartData.length;
+
+  // Visible window over the 30 days — shared by the main chart and the
+  // scroller. Dragging pans it, pinching (or pulling the scroller edges)
+  // squeezes it. Start/end are indices into chartData (end exclusive).
+  const [window, setWindow] = useState<ChartWindow>({ start: 0, end: count });
+  useEffect(() => {
+    setWindow(w => clampChartWindow(w.start, w.end, count, MIN_SPAN));
+  }, [count]);
+
+  const visible = useMemo(
+    () => window.end > window.start ? chartData.slice(window.start, window.end) : [],
+    [chartData, window]
+  );
+
+  const metricKey: Record<MetricId, 'money' | 'cpm' | 'impressions' | 'clicks'> = {
+    revenue: 'money',
+    cpm: 'cpm',
+    impressions: 'impressions',
+    clicks: 'clicks',
+  };
+
+  // Drag-to-pan / pinch-to-zoom on the main chart plot.
+  const main = usePanZoom({ count, window, onChange: setWindow, minSpan: MIN_SPAN });
+  // Same gestures on the scroller below the chart.
+  const scroller = usePanZoom({ count, window, onChange: setWindow, minSpan: MIN_SPAN });
+
+  // Drag the scroller's edge handles to resize ("squeeze") the window.
+  const edgeRef = useRef<{ edge: 'left' | 'right'; startX: number; startWin: ChartWindow } | null>(null);
+
+  const handleEdgeDown = (edge: 'left' | 'right') => (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* pointer already released */
+    }
+    edgeRef.current = { edge, startX: e.clientX, startWin: { ...window } };
+  };
+
+  const handleEdgeMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const r = edgeRef.current;
+    const el = scroller.containerRef.current;
+    if (!r || !el) return;
+    const rect = el.getBoundingClientRect();
+    const delta = Math.round(((e.clientX - r.startX) / Math.max(1, rect.width)) * count);
+    if (r.edge === 'left') {
+      setWindow(clampChartWindow(r.startWin.start + delta, r.startWin.end, count, MIN_SPAN));
+    } else {
+      setWindow(clampChartWindow(r.startWin.start, r.startWin.end + delta, count, MIN_SPAN));
+    }
+  };
+
+  const handleEdgeUp = () => {
+    edgeRef.current = null;
+  };
+
+  const handleMetricChange = (metricId: MetricId) => {
     setActiveMetric(metricId);
     setActivePoint(null);
   };
@@ -139,17 +208,92 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
   if (chartData.length === 0) {
     return (
       <div className="bg-white dark:bg-black rounded-2xl p-6 text-center text-xs text-slate-500 dark:text-neutral-400">
-        No statistics available for the selected period.
+        No statistics available for the last 30 days.
       </div>
     );
   }
 
-  const metrics: { id: 'revenue' | 'cpm' | 'impressions' | 'clicks'; label: string }[] = [
+  const metrics: { id: MetricId; label: string }[] = [
     { id: 'revenue', label: 'Revenue' },
     { id: 'cpm', label: 'CPM' },
     { id: 'impressions', label: 'Impressions' },
     { id: 'clicks', label: 'Clicks' },
   ];
+
+  const dataKey = metricKey[activeMetric];
+  const isArea = activeMetric === 'revenue' || activeMetric === 'impressions';
+
+  const renderPlot = (data: typeof chartData) =>
+    isArea ? (
+      <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} onClick={handleChartInteraction}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+        <XAxis dataKey="displayDate" stroke={axisColor} fontSize={10} tickLine={false} fontFamily="monospace" />
+        <YAxis
+          stroke={axisColor}
+          fontSize={10}
+          tickLine={false}
+          fontFamily="monospace"
+          tickFormatter={(val) => (activeMetric === 'impressions' ? formatCompactNumber(val) : `$${val}`)}
+        />
+        <Tooltip content={<CustomTooltip />} cursor={false} />
+        {activePoint && (
+          <>
+            <ReferenceLine y={activePoint.value} stroke={yAxisLineColor} strokeDasharray="3 3" strokeWidth={1.5} />
+            <ReferenceLine x={activePoint.displayDate} stroke={xAxisLineColor} strokeDasharray="3 3" strokeWidth={1} />
+          </>
+        )}
+        <Area
+          type="monotone"
+          dataKey={dataKey}
+          stroke={strokeColor}
+          strokeWidth={1.5}
+          fill={fillColor}
+          activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
+        />
+      </AreaChart>
+    ) : (
+      <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} onClick={handleChartInteraction}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+        <XAxis dataKey="displayDate" stroke={axisColor} fontSize={10} tickLine={false} fontFamily="monospace" />
+        <YAxis
+          stroke={axisColor}
+          fontSize={10}
+          tickLine={false}
+          fontFamily="monospace"
+          tickFormatter={(val) => (activeMetric === 'cpm' ? `$${val}` : formatCompactNumber(val))}
+        />
+        <Tooltip content={<CustomTooltip />} cursor={false} />
+        {activePoint && (
+          <>
+            <ReferenceLine y={activePoint.value} stroke={yAxisLineColor} strokeDasharray="3 3" strokeWidth={1.5} />
+            <ReferenceLine x={activePoint.displayDate} stroke={xAxisLineColor} strokeDasharray="3 3" strokeWidth={1} />
+          </>
+        )}
+        <Line
+          type="monotone"
+          dataKey={dataKey}
+          stroke={strokeColor}
+          strokeWidth={1.5}
+          dot={false}
+          activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
+        />
+      </LineChart>
+    );
+
+  const isFull = window.start === 0 && window.end >= count;
+  const spanDays = window.end - window.start;
+  const fromLabel = chartData[window.start]?.displayDate ?? '';
+  const toLabel = chartData[Math.max(window.start, window.end - 1)]?.displayDate ?? '';
+  const windowLeft = `${(window.start / count) * 100}%`;
+  const windowWidth = `${((window.end - window.start) / count) * 100}%`;
+
+  const scrollerProps = {
+    ref: scroller.containerRef,
+    onPointerDown: scroller.onPointerDown,
+    onPointerMove: scroller.onPointerMove,
+    onPointerUp: scroller.onPointerUp,
+    onPointerCancel: scroller.onPointerCancel,
+  };
 
   return (
     <div
@@ -157,8 +301,19 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
       className="w-full bg-white dark:bg-black rounded-2xl p-4 transition-colors select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none [&_*]:outline-none [&_*]:focus:outline-none [&_*]:focus:ring-0 [&_svg]:outline-none"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs font-semibold text-slate-900 dark:text-neutral-100 uppercase tracking-wider select-none">Trend</h3>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold text-slate-900 dark:text-neutral-100 uppercase tracking-wider select-none">Trend</h3>
+          {!isFull && (
+            <button
+              id="chart-reset-zoom"
+              onClick={() => setWindow({ start: 0, end: count })}
+              className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-slate-200 dark:border-neutral-800 text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white cursor-pointer select-none"
+            >
+              Reset
+            </button>
+          )}
+        </div>
 
         {/* Metric Selector */}
         <div className="flex items-center gap-1 p-0.5 rounded-full bg-slate-100 dark:bg-neutral-900 select-none">
@@ -180,181 +335,96 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
         </div>
       </div>
 
-      <div className="h-[240px] w-full select-none outline-none">
+      {/* Visible date range */}
+      <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 dark:text-neutral-500 mb-1">
+        <span>
+          {fromLabel} – {toLabel} · {spanDays}d
+        </span>
+        <span className="hidden sm:inline">Drag to pan · Pinch to zoom</span>
+      </div>
+
+      {/* Main chart — pan (drag) and pinch-zoom directly on it */}
+      <div
+        ref={main.containerRef}
+        onPointerDown={main.onPointerDown}
+        onPointerMove={main.onPointerMove}
+        onPointerUp={main.onPointerUp}
+        onPointerCancel={main.onPointerCancel}
+        onTouchStart={swallowTouch}
+        onTouchMove={swallowTouch}
+        onTouchEnd={swallowTouch}
+        onTouchCancel={swallowTouch}
+        className="h-[240px] w-full select-none outline-none touch-none cursor-grab active:cursor-grabbing"
+      >
         <ResponsiveContainer width="100%" height="100%">
-          {activeMetric === 'revenue' ? (
-            <AreaChart
-              data={chartData}
-              margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
-              onClick={handleChartInteraction}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-              <XAxis dataKey="displayDate" stroke={axisColor} fontSize={10} tickLine={false} fontFamily="monospace" />
-              <YAxis
-                stroke={axisColor}
-                fontSize={10}
-                tickLine={false}
-                fontFamily="monospace"
-                tickFormatter={(val) => `$${val}`}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={false} />
-              {activePoint && (
-                <>
-                  <ReferenceLine
-                    y={activePoint.value}
-                    stroke={yAxisLineColor}
-                    strokeDasharray="3 3"
-                    strokeWidth={1.5}
-                  />
-                  <ReferenceLine
-                    x={activePoint.displayDate}
-                    stroke={xAxisLineColor}
-                    strokeDasharray="3 3"
-                    strokeWidth={1}
-                  />
-                </>
-              )}
-              <Area
-                type="monotone"
-                dataKey="money"
-                stroke={strokeColor}
-                strokeWidth={1.5}
-                fill={fillColor}
-                name="Revenue"
-                activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
-              />
-            </AreaChart>
-          ) : activeMetric === 'cpm' ? (
-            <LineChart
-              data={chartData}
-              margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
-              onClick={handleChartInteraction}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-              <XAxis dataKey="displayDate" stroke={axisColor} fontSize={10} tickLine={false} fontFamily="monospace" />
-              <YAxis
-                stroke={axisColor}
-                fontSize={10}
-                tickLine={false}
-                fontFamily="monospace"
-                tickFormatter={(val) => `$${val}`}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={false} />
-              {activePoint && (
-                <>
-                  <ReferenceLine
-                    y={activePoint.value}
-                    stroke={yAxisLineColor}
-                    strokeDasharray="3 3"
-                    strokeWidth={1.5}
-                  />
-                  <ReferenceLine
-                    x={activePoint.displayDate}
-                    stroke={xAxisLineColor}
-                    strokeDasharray="3 3"
-                    strokeWidth={1}
-                  />
-                </>
-              )}
-              <Line
-                type="monotone"
-                dataKey="cpm"
-                stroke={strokeColor}
-                strokeWidth={1.5}
-                dot={false}
-                name="CPM"
-                activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
-              />
-            </LineChart>
-          ) : activeMetric === 'impressions' ? (
-            <AreaChart
-              data={chartData}
-              margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
-              onClick={handleChartInteraction}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-              <XAxis dataKey="displayDate" stroke={axisColor} fontSize={10} tickLine={false} fontFamily="monospace" />
-              <YAxis
-                stroke={axisColor}
-                fontSize={10}
-                tickLine={false}
-                fontFamily="monospace"
-                tickFormatter={(val) => formatCompactNumber(val)}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={false} />
-              {activePoint && (
-                <>
-                  <ReferenceLine
-                    y={activePoint.value}
-                    stroke={yAxisLineColor}
-                    strokeDasharray="3 3"
-                    strokeWidth={1.5}
-                  />
-                  <ReferenceLine
-                    x={activePoint.displayDate}
-                    stroke={xAxisLineColor}
-                    strokeDasharray="3 3"
-                    strokeWidth={1}
-                  />
-                </>
-              )}
-              <Area
-                type="monotone"
-                dataKey="impressions"
-                stroke={strokeColor}
-                strokeWidth={1.5}
-                fill={fillColor}
-                name="Impressions"
-                activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
-              />
-            </AreaChart>
-          ) : (
-            <LineChart
-              data={chartData}
-              margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
-              onClick={handleChartInteraction}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-              <XAxis dataKey="displayDate" stroke={axisColor} fontSize={10} tickLine={false} fontFamily="monospace" />
-              <YAxis
-                stroke={axisColor}
-                fontSize={10}
-                tickLine={false}
-                fontFamily="monospace"
-                tickFormatter={(val) => formatCompactNumber(val)}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={false} />
-              {activePoint && (
-                <>
-                  <ReferenceLine
-                    y={activePoint.value}
-                    stroke={yAxisLineColor}
-                    strokeDasharray="3 3"
-                    strokeWidth={1.5}
-                  />
-                  <ReferenceLine
-                    x={activePoint.displayDate}
-                    stroke={xAxisLineColor}
-                    strokeDasharray="3 3"
-                    strokeWidth={1}
-                  />
-                </>
-              )}
-              <Line
-                type="monotone"
-                dataKey="clicks"
-                stroke={strokeColor}
-                strokeWidth={1.5}
-                dot={false}
-                name="Clicks"
-                activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
-              />
-            </LineChart>
-          )}
+          {renderPlot(visible)}
         </ResponsiveContainer>
       </div>
+
+      {/* Scroller — mini overview of all 30 days with a draggable/squeezable window */}
+      <div
+        {...scrollerProps}
+        onTouchStart={swallowTouch}
+        onTouchMove={swallowTouch}
+        onTouchEnd={swallowTouch}
+        onTouchCancel={swallowTouch}
+        className="relative mt-3 h-12 w-full touch-none cursor-grab active:cursor-grabbing"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+            <Area
+              type="monotone"
+              dataKey={dataKey}
+              stroke={strokeColor}
+              strokeWidth={1}
+              fill={isDark ? 'rgba(245,245,245,0.06)' : 'rgba(15,23,42,0.06)'}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+
+        {/* Window overlay */}
+        <div
+          className="absolute top-0 bottom-0 border-y-2 border-slate-400 dark:border-neutral-400 bg-slate-900/[0.07] dark:bg-white/[0.07]"
+          style={{ left: windowLeft, width: windowWidth }}
+        >
+          {/* Left squeeze handle */}
+          <div
+            id="chart-window-edge-left"
+            onPointerDown={handleEdgeDown('left')}
+            onPointerMove={handleEdgeMove}
+            onPointerUp={handleEdgeUp}
+            onPointerCancel={handleEdgeUp}
+            onTouchStart={swallowTouch}
+            onTouchMove={swallowTouch}
+            onTouchEnd={swallowTouch}
+            onTouchCancel={swallowTouch}
+            className="absolute left-0 top-0 bottom-0 w-[10px] -ml-[5px] cursor-ew-resize touch-none flex items-center justify-center"
+          >
+            <div className="w-[3px] h-full bg-slate-500 dark:bg-neutral-300 rounded-full" />
+          </div>
+          {/* Right squeeze handle */}
+          <div
+            id="chart-window-edge-right"
+            onPointerDown={handleEdgeDown('right')}
+            onPointerMove={handleEdgeMove}
+            onPointerUp={handleEdgeUp}
+            onPointerCancel={handleEdgeUp}
+            onTouchStart={swallowTouch}
+            onTouchMove={swallowTouch}
+            onTouchEnd={swallowTouch}
+            onTouchCancel={swallowTouch}
+            className="absolute right-0 top-0 bottom-0 w-[10px] -mr-[5px] cursor-ew-resize touch-none flex items-center justify-center"
+          >
+            <div className="w-[3px] h-full bg-slate-500 dark:bg-neutral-300 rounded-full" />
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-2 text-[10px] font-mono text-slate-400 dark:text-neutral-600 sm:hidden select-none">
+        Last 30 days · drag to scroll · pinch or pull the edges to zoom
+      </p>
     </div>
   );
 }
-
-

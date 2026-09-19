@@ -6,15 +6,13 @@ import PullToRefresh from './components/PullToRefresh';
 import BottomNav, { TabId } from './components/BottomNav';
 import EarningsHighlight from './components/EarningsHighlight';
 import ChartsSection from './components/ChartsSection';
-import FilterBar from './components/FilterBar';
 import DailyStatsTable from './components/DailyStatsTable';
 import SettingsPage from './components/SettingsPage';
 import OnboardingScreen from './components/OnboardingScreen';
 import { useSettingsContext } from './context/SettingsContext';
 
-import { StatItem, DatePreset } from './types';
+import { StatItem } from './types';
 import {
-  getDateRangeForPreset,
   getISODateString,
   calculateCpm,
   addDaysISO,
@@ -58,12 +56,6 @@ export default function App() {
     });
   }, []);
   useTouchSwipe(handleSwipe);
-
-  // App state - Default to 7 days stats
-  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
-  const initialDates = useMemo(() => getDateRangeForPreset('7d'), []);
-  const [dateFrom, setDateFrom] = useState(initialDates.from);
-  const [dateTo, setDateTo] = useState(initialDates.to);
 
   // Single source of truth: the cached day-index for this API key.
   // Every filter/range is sliced from this index — no API round trip.
@@ -160,30 +152,8 @@ export default function App() {
     syncStatistics();
   }, [hasKey, apiKey, syncStatistics]);
 
-  // Handle Date Preset Changes (filters read from the cache only — no API)
-  const handleDatePresetChange = (preset: DatePreset) => {
-    setDatePreset(preset);
-    if (preset !== 'custom') {
-      const range = getDateRangeForPreset(preset);
-      setDateFrom(range.from);
-      setDateTo(range.to);
-    }
-  };
-
-  const handleCustomDateChange = (from: string, to: string) => {
-    setDateFrom(from);
-    setDateTo(to);
-  };
-
-  // Everything the charts/tables need is derived from the cached day index.
-  const dailyStats = useMemo(() => {
-    return dayIndex.filter(
-      s => s.date_time !== undefined && s.date_time >= dateFrom && s.date_time <= dateTo
-    );
-  }, [dayIndex, dateFrom, dateTo]);
-
-  // Compute Today & Yesterday metrics from the cache (independent of the
-  // currently selected filter range).
+  // Compute Today & Yesterday metrics from the cache (independent of any
+  // visible range on the charts or daily table).
   const todayStr = useMemo(() => getISODateString(new Date()), []);
   const yesterdayStr = useMemo(() => addDaysISO(todayStr, -1), [todayStr]);
 
@@ -263,26 +233,16 @@ export default function App() {
     }
   }, [hasKey, apiKey]);
 
-  const filterBar = (
-    <FilterBar
-      datePreset={datePreset}
-      onDatePresetChange={handleDatePresetChange}
-      dateFrom={dateFrom}
-      dateTo={dateTo}
-      onCustomDateChange={handleCustomDateChange}
-    />
-  );
-
   const loadingPanel = (
     <div className="bg-white dark:bg-black rounded-2xl p-8 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
       Loading analytics...
     </div>
   );
 
-  const isEmpty = dailyStats.length === 0 && !isLoading;
+  const isEmpty = dayIndex.length === 0 && !isLoading;
   const emptyPanel = (
     <div className="bg-white dark:bg-black rounded-2xl p-6 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
-      No data in the selected range.
+      No data cached yet — pull to refresh to fetch your last 30 days.
     </div>
   );
 
@@ -372,8 +332,7 @@ export default function App() {
                 transition={{ duration: 0.2, ease: 'easeOut' }}
                 className="space-y-3"
               >
-                {filterBar}
-                {isLoading && dailyStats.length === 0 && !error ? loadingPanel : isEmpty ? emptyPanel : <ChartsSection stats={dailyStats} />}
+                {isLoading && dayIndex.length === 0 && !error ? loadingPanel : isEmpty ? emptyPanel : <ChartsSection stats={dayIndex} />}
               </motion.div>
             )}
 
@@ -386,8 +345,7 @@ export default function App() {
                 transition={{ duration: 0.2, ease: 'easeOut' }}
                 className="space-y-3"
               >
-                {filterBar}
-                <DailyStatsTable stats={dailyStats} />
+                <DailyStatsTable stats={dayIndex} />
               </motion.div>
             )}
 

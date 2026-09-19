@@ -123,25 +123,3 @@ export function groupConsecutiveRanges(dates: string[]): { from: string; to: str
   }
   return ranges;
 }
-
-export function getDateRangeForPreset(preset: string): { from: string; to: string } {
-  const today = new Date();
-  const to = getISODateString(today);
-
-  switch (preset) {
-    case '7d': {
-      const fromDate = new Date();
-      fromDate.setDate(today.getDate() - 6);
-      return { from: getISODateString(fromDate), to };
-    }
-    case '30d': {
-      const fromDate = new Date();
-      fromDate.setDate(today.getDate() - 30);
-      return { from: getISODateString(fromDate), to };
-    }
-    case 'all':
-    default: {
-      return { from: '2024-01-01', to };
-    }
-  }
-}

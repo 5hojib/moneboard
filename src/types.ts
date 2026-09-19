@@ -26,5 +26,3 @@ export interface AggregatedStats {
   avgCtr: number;
   activeDays: number;
 }
-
-export type DatePreset = '7d' | '30d' | 'all' | 'custom';
