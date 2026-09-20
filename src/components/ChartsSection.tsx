@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import type { PointerEvent as ReactPointerEvent, SyntheticEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent, SyntheticEvent, Dispatch, SetStateAction } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -12,6 +12,7 @@ import {
   Tooltip,
   ReferenceLine
 } from 'recharts';
+import type { MouseHandlerDataParam } from 'recharts';
 import { StatItem } from '../types';
 import { formatCurrency, formatCompactNumber, calculateCpm } from '../utils/formatters';
 import { useTheme } from '../context/ThemeContext';
@@ -23,6 +24,32 @@ interface ChartsSectionProps {
 
 type MetricId = 'revenue' | 'cpm' | 'impressions' | 'clicks';
 
+interface ChartDatum {
+  date: string;
+  displayDate: string;
+  money: number;
+  cpm: number;
+  impressions: number;
+  clicks: number;
+}
+
+interface ActivePoint {
+  date: string;
+  displayDate: string;
+  value: number;
+}
+
+type ActivePointSetter = Dispatch<SetStateAction<ActivePoint | null>>;
+
+type MetricKey = 'money' | 'cpm' | 'impressions' | 'clicks';
+
+const METRIC_KEY: Record<MetricId, MetricKey> = {
+  revenue: 'money',
+  cpm: 'cpm',
+  impressions: 'impressions',
+  clicks: 'clicks',
+};
+
 const DEFAULT_DAYS = 30;
 const MIN_SPAN = 5;
 
@@ -30,30 +57,182 @@ const MIN_SPAN = 5;
 // `window`) from firing when a gesture begins inside the interactive chart.
 const swallowTouch = (e: SyntheticEvent) => e.stopPropagation();
 
+function metricValue(metric: MetricId, item: ChartDatum): number {
+  return item[METRIC_KEY[metric]];
+}
+
+// recharts hands a MouseHandlerDataParam to the chart onClick; the active
+// datum is addressable via its index into the chart's data array.
+
+interface ChartColors {
+  gridColor: string;
+  axisColor: string;
+  strokeColor: string;
+  fillColor: string;
+  yAxisLineColor: string;
+  xAxisLineColor: string;
+  isDark: boolean;
+}
+
+interface PlotProps {
+  data: ChartDatum[];
+  metric: MetricId;
+  activePoint: ActivePoint | null;
+  onPoint: ActivePointSetter;
+  colors: ChartColors;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload?: ChartDatum }>;
+  metric: MetricId;
+  onPoint: ActivePointSetter;
+}
+
+// Hover tooltip for the main chart. Also syncs the hovered/tapped point into
+// the active-point state so the crosshair reference lines follow the cursor.
+function ChartTooltip({ active, payload, metric, onPoint }: ChartTooltipProps) {
+  useEffect(() => {
+    if (active && payload && payload.length > 0 && payload[0]?.payload) {
+      const item = payload[0].payload;
+      const value = metricValue(metric, item);
+      onPoint(prev => {
+        if (prev?.date === item.date && prev?.value === value) return prev;
+        return { date: item.date, displayDate: item.displayDate, value };
+      });
+    }
+  }, [active, payload, metric, onPoint]);
+
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    if (data) {
+      return (
+        <div className="bg-slate-900 dark:bg-black text-white px-3 py-2 rounded text-xs space-y-1 font-mono border border-slate-800 dark:border-neutral-800">
+          <div className="text-slate-400 dark:text-neutral-500 text-[11px] pb-1 border-b border-slate-800 dark:border-neutral-800">
+            {data.date}
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-400 dark:text-neutral-400 font-sans">Revenue</span>
+            <span className="text-white font-bold">{formatCurrency(data.money)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-400 dark:text-neutral-400 font-sans">CPM</span>
+            <span>{formatCurrency(data.cpm)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-400 dark:text-neutral-400 font-sans">Impressions</span>
+            <span>{formatCompactNumber(data.impressions)}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-400 dark:text-neutral-400 font-sans">Clicks</span>
+            <span>{formatCompactNumber(data.clicks)}</span>
+          </div>
+        </div>
+      );
+    }
+  }
+  return null;
+}
+
+// The main plot (area for revenue/impressions, line otherwise). Defined at
+// module level so recharts never remounts it on parent re-renders.
+function Plot({ data, metric, activePoint, onPoint, colors }: PlotProps) {
+  const isArea = metric === 'revenue' || metric === 'impressions';
+  const dataKey = METRIC_KEY[metric];
+
+  const handleChartClick = (state: MouseHandlerDataParam) => {
+    const idx = state.activeTooltipIndex;
+    if (typeof idx !== 'number') return;
+    const item = data[idx];
+    if (item) {
+      onPoint({ date: item.date, displayDate: item.displayDate, value: metricValue(metric, item) });
+    }
+  };
+
+  const axis = (
+    <>
+      <XAxis dataKey="displayDate" stroke={colors.axisColor} fontSize={10} tickLine={false} fontFamily="monospace" />
+      <YAxis
+        stroke={colors.axisColor}
+        fontSize={10}
+        tickLine={false}
+        fontFamily="monospace"
+        tickFormatter={(val) => (metric === 'impressions' ? formatCompactNumber(val) : metric === 'cpm' ? `$${val}` : `$${val}`)}
+      />
+    </>
+  );
+
+  const crosshair =
+    activePoint &&
+    <>
+      <ReferenceLine y={activePoint.value} stroke={colors.yAxisLineColor} strokeDasharray="3 3" strokeWidth={1.5} />
+      <ReferenceLine x={activePoint.displayDate} stroke={colors.xAxisLineColor} strokeDasharray="3 3" strokeWidth={1} />
+    </>;
+
+  const tooltip = <Tooltip content={<ChartTooltip metric={metric} onPoint={onPoint} />} cursor={false} />;
+
+  if (isArea) {
+    return (
+      <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} onClick={handleChartClick}>
+        <CartesianGrid strokeDasharray="3 3" stroke={colors.gridColor} vertical={false} />
+        {axis}
+        {tooltip}
+        {crosshair}
+        <Area
+          type="monotone"
+          dataKey={dataKey}
+          stroke={colors.strokeColor}
+          strokeWidth={1.5}
+          fill={colors.fillColor}
+          activeDot={{ r: 4, stroke: colors.isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: colors.strokeColor }}
+          isAnimationActive={false}
+        />
+      </AreaChart>
+    );
+  }
+
+  return (
+    <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} onClick={handleChartClick}>
+      <CartesianGrid strokeDasharray="3 3" stroke={colors.gridColor} vertical={false} />
+      {axis}
+      {tooltip}
+      {crosshair}
+      <Line
+        type="monotone"
+        dataKey={dataKey}
+        stroke={colors.strokeColor}
+        strokeWidth={1.5}
+        dot={false}
+        activeDot={{ r: 4, stroke: colors.isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: colors.strokeColor }}
+        isAnimationActive={false}
+      />
+    </LineChart>
+  );
+}
+
 export default function ChartsSection({ stats }: ChartsSectionProps) {
   const [activeMetric, setActiveMetric] = useState<MetricId>('revenue');
-  const [activePoint, setActivePoint] = useState<{
-    date: string;
-    displayDate: string;
-    value: number;
-  } | null>(null);
+  const [activePoint, setActivePoint] = useState<ActivePoint | null>(null);
 
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const gridColor = isDark ? '#171717' : '#f1f5f9';
-  const axisColor = isDark ? '#525252' : '#94a3b8';
-  const strokeColor = isDark ? '#e5e5e5' : '#0f172a';
-  const fillColor = isDark ? 'rgba(245, 245, 245, 0.10)' : '#f1f5f9';
-  const yAxisLineColor = isDark ? '#a3a3a3' : '#64748b';
-  const xAxisLineColor = isDark ? '#404040' : '#cbd5e1';
+  const colors: ChartColors = {
+    gridColor: isDark ? '#171717' : '#f1f5f9',
+    axisColor: isDark ? '#525252' : '#94a3b8',
+    strokeColor: isDark ? '#e5e5e5' : '#0f172a',
+    fillColor: isDark ? 'rgba(245, 245, 245, 0.10)' : '#f1f5f9',
+    yAxisLineColor: isDark ? '#a3a3a3' : '#64748b',
+    xAxisLineColor: isDark ? '#404040' : '#cbd5e1',
+    isDark,
+  };
 
   // The scroller shows the whole cached history; the main chart only the
   // visible slice. Every cached day is the source of truth.
-  const chartData = useMemo(() => {
-    return [...stats]
-      .filter(item => item.date_time)
-      .sort((a, b) => (a.date_time! > b.date_time! ? 1 : -1))
+  const chartData = useMemo<ChartDatum[]>(() => {
+    return stats
+      .filter((item): item is StatItem & { date_time: string } => Boolean(item.date_time))
+      .sort((a, b) => (a.date_time > b.date_time ? 1 : -1))
       .map(item => {
         const money = typeof item.money === 'string' ? parseFloat(item.money) : Number(item.money || 0);
         const impressions = typeof item.impressions === 'string' ? parseFloat(item.impressions) : Number(item.impressions || 0);
@@ -62,7 +241,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
 
         return {
           date: item.date_time,
-          displayDate: item.date_time ? item.date_time.slice(5) : '', // "MM-DD"
+          displayDate: item.date_time.slice(5), // "MM-DD"
           money: Number(money.toFixed(4)),
           cpm: Number(cpm.toFixed(4)),
           impressions: Math.round(impressions),
@@ -108,13 +287,6 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
     const end = Math.min(count, Math.round(window.end));
     return end > start ? chartData.slice(start, end) : [];
   }, [chartData, window, count]);
-
-  const metricKey: Record<MetricId, 'money' | 'cpm' | 'impressions' | 'clicks'> = {
-    revenue: 'money',
-    cpm: 'cpm',
-    impressions: 'impressions',
-    clicks: 'clicks',
-  };
 
   // Drag-to-pan / pinch-to-zoom on the main chart plot.
   const main = usePanZoom({ count, window, onChange: markWindowChange, minSpan: MIN_SPAN });
@@ -163,78 +335,6 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
     setActivePoint(null);
   };
 
-  const handleChartInteraction = (e: any) => {
-    if (e && e.activePayload && e.activePayload.length > 0) {
-      const item = e.activePayload[0].payload;
-      const val =
-        activeMetric === 'revenue'
-          ? item.money
-          : activeMetric === 'cpm'
-          ? item.cpm
-          : activeMetric === 'impressions'
-          ? item.impressions
-          : item.clicks;
-      setActivePoint({
-        date: item.date,
-        displayDate: item.displayDate,
-        value: val,
-      });
-    }
-  };
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    useEffect(() => {
-      if (active && payload && payload.length > 0 && payload[0]?.payload) {
-        const item = payload[0].payload;
-        const val =
-          activeMetric === 'revenue'
-            ? item.money
-            : activeMetric === 'cpm'
-            ? item.cpm
-            : activeMetric === 'impressions'
-            ? item.impressions
-            : item.clicks;
-
-        setActivePoint(prev => {
-          if (prev?.date === item.date && prev?.value === val) return prev;
-          return {
-            date: item.date,
-            displayDate: item.displayDate,
-            value: val,
-          };
-        });
-      }
-    }, [active, payload]);
-
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-slate-900 dark:bg-black text-white px-3 py-2 rounded text-xs space-y-1 font-mono border border-slate-800 dark:border-neutral-800">
-          <div className="text-slate-400 dark:text-neutral-500 text-[11px] pb-1 border-b border-slate-800 dark:border-neutral-800">
-            {data.date}
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-400 dark:text-neutral-400 font-sans">Revenue</span>
-            <span className="text-white font-bold">{formatCurrency(data.money)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-400 dark:text-neutral-400 font-sans">CPM</span>
-            <span>{formatCurrency(data.cpm)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-400 dark:text-neutral-400 font-sans">Impressions</span>
-            <span>{formatCompactNumber(data.impressions)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-400 dark:text-neutral-400 font-sans">Clicks</span>
-            <span>{formatCompactNumber(data.clicks)}</span>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   if (chartData.length === 0) {
     return (
       <div className="bg-white dark:bg-black rounded-2xl p-6 text-center text-xs text-slate-500 dark:text-neutral-400">
@@ -249,68 +349,6 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
     { id: 'impressions', label: 'Impressions' },
     { id: 'clicks', label: 'Clicks' },
   ];
-
-  const dataKey = metricKey[activeMetric];
-  const isArea = activeMetric === 'revenue' || activeMetric === 'impressions';
-
-  const renderPlot = (data: typeof chartData) =>
-    isArea ? (
-      <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} onClick={handleChartInteraction}>
-        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-        <XAxis dataKey="displayDate" stroke={axisColor} fontSize={10} tickLine={false} fontFamily="monospace" />
-        <YAxis
-          stroke={axisColor}
-          fontSize={10}
-          tickLine={false}
-          fontFamily="monospace"
-          tickFormatter={(val) => (activeMetric === 'impressions' ? formatCompactNumber(val) : `$${val}`)}
-        />
-        <Tooltip content={<CustomTooltip />} cursor={false} />
-        {activePoint && (
-          <>
-            <ReferenceLine y={activePoint.value} stroke={yAxisLineColor} strokeDasharray="3 3" strokeWidth={1.5} />
-            <ReferenceLine x={activePoint.displayDate} stroke={xAxisLineColor} strokeDasharray="3 3" strokeWidth={1} />
-          </>
-        )}
-        <Area
-          type="monotone"
-          dataKey={dataKey}
-          stroke={strokeColor}
-          strokeWidth={1.5}
-          fill={fillColor}
-          activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
-          isAnimationActive={false}
-        />
-      </AreaChart>
-    ) : (
-      <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} onClick={handleChartInteraction}>
-        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-        <XAxis dataKey="displayDate" stroke={axisColor} fontSize={10} tickLine={false} fontFamily="monospace" />
-        <YAxis
-          stroke={axisColor}
-          fontSize={10}
-          tickLine={false}
-          fontFamily="monospace"
-          tickFormatter={(val) => (activeMetric === 'cpm' ? `$${val}` : formatCompactNumber(val))}
-        />
-        <Tooltip content={<CustomTooltip />} cursor={false} />
-        {activePoint && (
-          <>
-            <ReferenceLine y={activePoint.value} stroke={yAxisLineColor} strokeDasharray="3 3" strokeWidth={1.5} />
-            <ReferenceLine x={activePoint.displayDate} stroke={xAxisLineColor} strokeDasharray="3 3" strokeWidth={1} />
-          </>
-        )}
-        <Line
-          type="monotone"
-          dataKey={dataKey}
-          stroke={strokeColor}
-          strokeWidth={1.5}
-          dot={false}
-          activeDot={{ r: 4, stroke: isDark ? '#000' : '#fff', strokeWidth: 1.5, fill: strokeColor }}
-          isAnimationActive={false}
-        />
-      </LineChart>
-    );
 
   const isFull = window.start <= 0.001 && window.end >= count - 0.001;
   const fromIdx = Math.max(0, Math.round(window.start));
@@ -384,7 +422,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
         className="h-[240px] w-full select-none outline-none touch-none cursor-grab active:cursor-grabbing"
       >
         <ResponsiveContainer width="100%" height="100%">
-          {renderPlot(visible)}
+          <Plot data={visible} metric={activeMetric} activePoint={activePoint} onPoint={setActivePoint} colors={colors} />
         </ResponsiveContainer>
       </div>
 
@@ -405,8 +443,8 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
           <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
             <Area
               type="monotone"
-              dataKey={dataKey}
-              stroke={strokeColor}
+              dataKey={METRIC_KEY[activeMetric]}
+              stroke={colors.strokeColor}
               strokeWidth={1}
               fill={isDark ? 'rgba(245,245,245,0.06)' : 'rgba(15,23,42,0.06)'}
               dot={false}
