@@ -6,15 +6,16 @@ interface SettingsContextType {
   setApiKey: (apiKey: string) => void;
   setTotalWithdrawals: (totalWithdrawals: number) => void;
   setThemeMode: (themeMode: ThemeMode) => void;
+  setFullHistoryLoaded: (fullHistoryLoaded: boolean) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const { settings, setApiKey, setTotalWithdrawals, setThemeMode } = useSettings();
+  const { settings, setApiKey, setTotalWithdrawals, setThemeMode, setFullHistoryLoaded } = useSettings();
 
   return (
-    <SettingsContext.Provider value={{ settings, setApiKey, setTotalWithdrawals, setThemeMode }}>
+    <SettingsContext.Provider value={{ settings, setApiKey, setTotalWithdrawals, setThemeMode, setFullHistoryLoaded }}>
       {children}
     </SettingsContext.Provider>
   );

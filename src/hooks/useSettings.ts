@@ -7,6 +7,9 @@ export interface Settings {
   apiKey: string;
   totalWithdrawals: number;
   themeMode: ThemeMode;
+  // Set once the user runs "Load all data" — when false, the home hero's
+  // "lifetime" figure is based on cached days only and says so.
+  fullHistoryLoaded?: boolean;
 }
 
 export const SETTINGS_STORAGE_KEY = 'monetag_settings_v1';
@@ -34,6 +37,7 @@ export function loadSettings(): Settings {
     apiKey: typeof stored.apiKey === 'string' && stored.apiKey.trim() ? stored.apiKey.trim() : '',
     totalWithdrawals: Number.isFinite(withdrawals) && withdrawals >= 0 ? withdrawals : DEFAULT_WITHDRAWALS,
     themeMode,
+    fullHistoryLoaded: stored.fullHistoryLoaded === true,
   };
 }
 
@@ -55,6 +59,10 @@ export function useSettings() {
   const setApiKey = useCallback((apiKey: string) => update({ apiKey: apiKey.trim() }), [update]);
   const setTotalWithdrawals = useCallback((totalWithdrawals: number) => update({ totalWithdrawals }), [update]);
   const setThemeMode = useCallback((themeMode: ThemeMode) => update({ themeMode }), [update]);
+  const setFullHistoryLoaded = useCallback(
+    (fullHistoryLoaded: boolean) => update({ fullHistoryLoaded }),
+    [update]
+  );
 
-  return { settings, setApiKey, setTotalWithdrawals, setThemeMode };
+  return { settings, setApiKey, setTotalWithdrawals, setThemeMode, setFullHistoryLoaded };
 }

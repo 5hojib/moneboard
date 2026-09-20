@@ -39,9 +39,10 @@ const TAIL_DAYS = 3;
 const HOLD_DAYS = 4;
 
 export default function App() {
-  const { settings } = useSettingsContext();
+  const { settings, setFullHistoryLoaded } = useSettingsContext();
   const apiKey = settings.apiKey.trim();
   const hasKey = apiKey.length > 0;
+  const hasFullHistory = settings.fullHistoryLoaded === true;
 
   // Bottom navigation
   const [tab, setTab] = useState<TabId>('home');
@@ -222,6 +223,7 @@ export default function App() {
         setError(null);
         setShowingCached(false);
         setReplayKey(k => k + 1);
+        setFullHistoryLoaded(true);
         setLoadAllMessage(`Cached ${merged.length} days of history.`);
       } else {
         setLoadAllMessage(`Failed: ${res.error ?? 'unknown error'}`);
@@ -318,6 +320,7 @@ export default function App() {
                   yesterdayImpressions={yesterdayImpressions}
                   yesterdayCpm={yesterdayCpm}
                   yesterdayDate={yesterdayStr}
+                  lifetimePartial={!hasFullHistory}
                   replay={replayKey}
                 />
               </motion.div>

@@ -15,6 +15,9 @@ interface EarningsHighlightProps {
   yesterdayImpressions: number;
   yesterdayCpm: number;
   yesterdayDate: string;
+  // True when lifetime earnings are based on a partial cache (the user has
+  // not run "Load all data" yet) — surfaced as a small disclaimer.
+  lifetimePartial?: boolean;
   // Bump to replay every odometer roll even when values are unchanged.
   replay?: number;
 }
@@ -31,6 +34,7 @@ export default function EarningsHighlight({
   yesterdayMoney,
   yesterdayImpressions,
   yesterdayDate,
+  lifetimePartial = false,
   replay = 0,
 }: EarningsHighlightProps) {
   return (
@@ -68,6 +72,11 @@ export default function EarningsHighlight({
             <> · Withdrawn {formatCurrencyFixed(totalWithdrawals)}</>
           )}
         </p>
+        {lifetimePartial && (
+          <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-600 tabular-nums">
+            Partial history — run "Load all data" in Settings for the full lifetime total
+          </p>
+        )}
       </div>
 
       {/* Today & Yesterday — centered typographic row with hairline dividers */}
