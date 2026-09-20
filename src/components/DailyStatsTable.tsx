@@ -177,7 +177,7 @@ export default function DailyStatsTable({ stats }: DailyStatsTableProps) {
 
       {/* Pagination Footer */}
       {totalPages > 1 && (
-        <div className="px-3.5 py-2 border-t border-slate-200 dark:border-neutral-850 flex items-center justify-between text-xs text-slate-500 dark:text-neutral-400">
+        <div className="px-3.5 py-2 border-t border-slate-200 dark:border-neutral-800 flex items-center justify-between text-xs text-slate-500 dark:text-neutral-400">
           <span className="font-mono text-[11px]">
             {currentPage} / {totalPages}
           </span>
