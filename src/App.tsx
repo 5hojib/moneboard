@@ -13,11 +13,11 @@ import { useSettingsContext } from './context/SettingsContext';
 
 import { StatItem } from './types';
 import {
-  getISODateString,
   calculateCpm,
   addDaysISO,
   getMissingDates,
   groupConsecutiveRanges,
+  getApiTodayISO,
 } from './utils/formatters';
 import { getAllStatistics } from './api/client';
 import { getDayIndex, mergeDayIndex } from './utils/apiCache';
@@ -42,7 +42,6 @@ export default function App() {
   const { settings, setFullHistoryLoaded } = useSettingsContext();
   const apiKey = settings.apiKey.trim();
   const hasKey = apiKey.length > 0;
-  const hasFullHistory = settings.fullHistoryLoaded === true;
 
   // Bottom navigation
   const [tab, setTab] = useState<TabId>('home');
@@ -100,7 +99,7 @@ export default function App() {
   const syncStatistics = useCallback(async () => {
     if (!hasKey) return;
 
-    const today = getISODateString(new Date());
+    const today = getApiTodayISO();
     const syncFrom = addDaysISO(today, -(SYNC_WINDOW_DAYS - 1));
     const known = getDayIndex(apiKey).map(r => r.date_time).filter(Boolean) as string[];
 
@@ -153,21 +152,34 @@ export default function App() {
     syncStatistics();
   }, [hasKey, apiKey, syncStatistics]);
 
-  // Compute Today & Yesterday metrics from the cache (independent of any
-  // visible range on the charts or daily table).
-  const todayStr = useMemo(() => getISODateString(new Date()), []);
-  const yesterdayStr = useMemo(() => addDaysISO(todayStr, -1), [todayStr]);
+  // Compute Today metrics from the cache (independent of any visible range on
+  // the charts or daily table). The "today" date follows the API's BD-time day
+  // boundary (10:00 AM), not the device's local midnight.
+  const todayStr = getApiTodayISO();
 
   const todayStat = dayIndex.find(s => s.date_time === todayStr);
-  const yesterdayStat = dayIndex.find(s => s.date_time === yesterdayStr);
 
   const todayMoney = todayStat ? (parseFloat(String(todayStat.money)) || 0) : 0;
   const todayImpressions = todayStat ? (parseInt(String(todayStat.impressions), 10) || 0) : 0;
   const todayCpm = calculateCpm(todayMoney, todayImpressions);
 
-  const yesterdayMoney = yesterdayStat ? (parseFloat(String(yesterdayStat.money)) || 0) : 0;
-  const yesterdayImpressions = yesterdayStat ? (parseInt(String(yesterdayStat.impressions), 10) || 0) : 0;
-  const yesterdayCpm = calculateCpm(yesterdayMoney, yesterdayImpressions);
+  // Last 3 days before today, newest first.
+  const lastThreeDays = useMemo(() => {
+    return dayIndex
+      .filter(s => !!s.date_time && (s.date_time as string) < todayStr)
+      .sort((a, b) => ((a.date_time as string) < (b.date_time as string) ? 1 : -1))
+      .slice(0, 3)
+      .map(s => {
+        const money = parseFloat(String(s.money)) || 0;
+        const impressions = parseInt(String(s.impressions), 10) || 0;
+        return {
+          date: s.date_time as string,
+          money,
+          impressions,
+          cpm: calculateCpm(money, impressions),
+        };
+      });
+  }, [dayIndex, todayStr]);
 
   // Lifetime earnings = total earnings across the cached day index (complete
   // after the user runs "Load all data" in Settings).
@@ -208,7 +220,7 @@ export default function App() {
     setLoadAllLoading(true);
     setLoadAllMessage(null);
     try {
-      const today = getISODateString(new Date());
+      const today = getApiTodayISO();
       const res = await getAllStatistics({
         date_from: '2024-01-01',
         date_to: today,
@@ -308,19 +320,12 @@ export default function App() {
               >
                 <EarningsHighlight
                   currentBalance={currentBalance}
-                  effectiveLifetimeEarnings={effectiveLifetimeEarnings}
-                  totalWithdrawals={totalWithdrawals}
                   heldBalance={heldBalance}
                   approvedBalance={approvedBalance}
                   todayMoney={todayMoney}
                   todayImpressions={todayImpressions}
                   todayCpm={todayCpm}
-                  todayDate={todayStr}
-                  yesterdayMoney={yesterdayMoney}
-                  yesterdayImpressions={yesterdayImpressions}
-                  yesterdayCpm={yesterdayCpm}
-                  yesterdayDate={yesterdayStr}
-                  lifetimePartial={!hasFullHistory}
+                  lastThreeDays={lastThreeDays}
                   replay={replayKey}
                 />
               </motion.div>
