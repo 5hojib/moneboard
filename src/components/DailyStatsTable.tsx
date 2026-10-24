@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { StatItem } from '../types';
 import {
   formatCurrency,
@@ -12,6 +12,19 @@ interface DailyStatsTableProps {
 
 type SortField = 'date_time' | 'impressions' | 'requests' | 'clicks' | 'cpm' | 'money';
 type SortOrder = 'asc' | 'desc';
+
+const DailyRow = memo(function DailyRow({ row }: { row: { date_time: string; money: number; impressions: number; requests: number; clicks: number; cpm: number } }) {
+  return (
+    <tr className="hover:bg-slate-50 dark:hover:bg-neutral-900/40 transition-colors">
+      <td className="py-2 px-3.5 font-medium text-slate-900 dark:text-neutral-200">{row.date_time}</td>
+      <td className="py-2 px-3.5 text-right text-slate-700 dark:text-neutral-300">{formatNumber(row.impressions)}</td>
+      <td className="py-2 px-3.5 text-right text-slate-400 dark:text-neutral-500">{formatNumber(row.requests)}</td>
+      <td className="py-2 px-3.5 text-right text-slate-700 dark:text-neutral-300">{formatNumber(row.clicks)}</td>
+      <td className="py-2 px-3.5 text-right text-slate-700 dark:text-neutral-300">{formatCurrency(row.cpm)}</td>
+      <td className="py-2 px-3.5 text-right font-medium text-slate-900 dark:text-white">{formatCurrency(row.money)}</td>
+    </tr>
+  );
+});
 
 export default function DailyStatsTable({ stats }: DailyStatsTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -161,14 +174,7 @@ export default function DailyStatsTable({ stats }: DailyStatsTableProps) {
               </tr>
             ) : (
               paginatedRows.map((row) => (
-                <tr key={row.date_time} className="hover:bg-slate-50 dark:hover:bg-neutral-900/40 transition-colors">
-                  <td className="py-2 px-3.5 font-medium text-slate-900 dark:text-neutral-200">{row.date_time}</td>
-                  <td className="py-2 px-3.5 text-right text-slate-700 dark:text-neutral-300">{formatNumber(row.impressions)}</td>
-                  <td className="py-2 px-3.5 text-right text-slate-400 dark:text-neutral-500">{formatNumber(row.requests)}</td>
-                  <td className="py-2 px-3.5 text-right text-slate-700 dark:text-neutral-300">{formatNumber(row.clicks)}</td>
-                  <td className="py-2 px-3.5 text-right text-slate-700 dark:text-neutral-300">{formatCurrency(row.cpm)}</td>
-                  <td className="py-2 px-3.5 text-right font-medium text-slate-900 dark:text-white">{formatCurrency(row.money)}</td>
-                </tr>
+                <DailyRow key={row.date_time} row={row} />
               ))
             )}
           </tbody>

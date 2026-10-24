@@ -19,5 +19,8 @@ export default defineConfig(() => {
       // The webview loads the app from dist/www (bundled inside the APK).
       emptyOutDir: true,
     },
+    test: {
+      environment: 'jsdom',
+    },
   };
 });
