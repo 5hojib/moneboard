@@ -32,7 +32,7 @@ export default function Header({
             {maskedKey && (
               <span
                 id="api-key-status-badge"
-                title="Configured via environment variable"
+                title="Configured on this device"
                 className="h-7 px-2.5 inline-flex items-center justify-center font-mono text-[11px] leading-none text-slate-500 dark:text-neutral-400 select-none"
               >
                 {maskedKey}

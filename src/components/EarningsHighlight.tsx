@@ -17,6 +17,7 @@ interface EarningsHighlightProps {
   todayCpm: number;
   lastThreeDays: RecentDay[];
   replay?: number;
+  fullHistoryLoaded?: boolean;
 }
 
 export default function EarningsHighlight({
@@ -28,6 +29,7 @@ export default function EarningsHighlight({
   todayCpm,
   lastThreeDays,
   replay = 0,
+  fullHistoryLoaded = false,
 }: EarningsHighlightProps) {
   return (
     <section id="earnings-highlight-section" className="pt-8 pb-2 sm:pt-14 flex flex-col items-center text-center">
@@ -59,6 +61,12 @@ export default function EarningsHighlight({
         </div>
 
       </div>
+
+      {!fullHistoryLoaded && (
+        <p className="mt-3 text-[10px] font-mono text-slate-400 dark:text-neutral-500">
+          Lifetime = cached days only — use “Load all data” in Settings for full history.
+        </p>
+      )}
 
       {/* Today & last 3 days — left aligned */}
       <div

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { MONETAG_TOTAL_WITHDRAWALS as DEFAULT_WITHDRAWALS } from '../config';
+import { MONETAG_TOTAL_WITHDRAWALS as DEFAULT_WITHDRAWALS, SETTINGS_STORAGE_KEY } from '../config';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -11,8 +11,6 @@ export interface Settings {
   // "lifetime" figure is based on cached days only and says so.
   fullHistoryLoaded?: boolean;
 }
-
-export const SETTINGS_STORAGE_KEY = 'monetag_settings_v1';
 
 function getStoredSettings(): Partial<Settings> {
   if (typeof window === 'undefined') return {};
@@ -56,7 +54,7 @@ export function useSettings() {
     });
   }, []);
 
-  const setApiKey = useCallback((apiKey: string) => update({ apiKey: apiKey.trim() }), [update]);
+  const setApiKey = useCallback((apiKey: string) => update({ apiKey: apiKey.trim(), fullHistoryLoaded: false }), [update]);
   const setTotalWithdrawals = useCallback((totalWithdrawals: number) => update({ totalWithdrawals }), [update]);
   const setThemeMode = useCallback((themeMode: ThemeMode) => update({ themeMode }), [update]);
   const setFullHistoryLoaded = useCallback(

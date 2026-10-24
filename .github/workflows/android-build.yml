@@ -6,10 +6,6 @@ on:
     tags: ['v*']
   workflow_dispatch:
     inputs:
-      monetag_api_key:
-        description: 'Monetag API key to bake into the APK (optional, defaults to the bundled key)'
-        required: false
-        type: string
       total_withdrawals:
         description: 'Total withdrawn USD for the balance calculation (optional, default 0)'
         required: false
@@ -41,10 +37,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck
+        run: npm run lint
+
       - name: Build web assets
         run: npm run build:android
         env:
-          VITE_MONETAG_API_KEY: ${{ inputs.monetag_api_key || secrets.MONETAG_API_KEY || '' }}
           VITE_MONETAG_TOTAL_WITHDRAWALS: ${{ inputs.total_withdrawals || secrets.MONETAG_TOTAL_WITHDRAWALS || '' }}
 
       - name: Sync Capacitor

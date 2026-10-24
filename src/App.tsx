@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTouchSwipe } from './hooks/useTouchSwipe';
 import { AnimatePresence, motion } from 'motion/react';
 import Header from './components/Header';
 import PullToRefresh from './components/PullToRefresh';
 import BottomNav, { TabId } from './components/BottomNav';
 import EarningsHighlight from './components/EarningsHighlight';
-import ChartsSection from './components/ChartsSection';
+import { lazy, Suspense } from 'react';
+const ChartsSection = lazy(() => import('./components/ChartsSection'));
 import DailyStatsTable from './components/DailyStatsTable';
 import SettingsPage from './components/SettingsPage';
 import OnboardingScreen from './components/OnboardingScreen';
@@ -60,6 +61,7 @@ export default function App() {
   // Single source of truth: the cached day-index for this API key.
   // Every filter/range is sliced from this index — no API round trip.
   const [dayIndex, setDayIndex] = useState<StatItem[]>([]);
+  const syncingRef = useRef(false);
 
   // Metadata
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -98,6 +100,8 @@ export default function App() {
   // them instead.
   const syncStatistics = useCallback(async () => {
     if (!hasKey) return;
+    if (syncingRef.current) return;
+    syncingRef.current = true;
 
     const today = getApiTodayISO();
     const syncFrom = addDaysISO(today, -(SYNC_WINDOW_DAYS - 1));
@@ -144,6 +148,7 @@ export default function App() {
     }
     setIsLoading(false);
     setReplayKey(k => k + 1);
+    syncingRef.current = false;
   }, [hasKey, apiKey]);
 
   // Initial top-up on mount, and every time the API key changes.
@@ -195,13 +200,16 @@ export default function App() {
   // never the last-N rows (which could straddle 5 calendar days).
   const heldBalance = useMemo(() => {
     if (dayIndex.length === 0) return 0;
-    const newestStr = dayIndex[dayIndex.length - 1].date_time;
+    const sorted = [...dayIndex].sort((a, b) =>
+      (a.date_time as string) < (b.date_time as string) ? -1 : 1
+    );
+    const newestStr = sorted[sorted.length - 1]?.date_time;
     if (!newestStr) return 0;
 
     const byDate = new Map<string, number>();
-    for (const s of dayIndex) {
-      if (s.date_time !== undefined) {
-        byDate.set(s.date_time, parseFloat(String(s.money)) || 0);
+    for (const row of sorted) {
+      if (row.date_time !== undefined) {
+        byDate.set(row.date_time, parseFloat(String(row.money)) || 0);
       }
     }
 
@@ -217,6 +225,7 @@ export default function App() {
   // "Load all data" — backfill the entire history into the cache.
   const handleLoadAllData = useCallback(async () => {
     if (!hasKey) return;
+    if (loadAllLoading) return;
     setLoadAllLoading(true);
     setLoadAllMessage(null);
     try {
@@ -319,6 +328,7 @@ export default function App() {
                 className="space-y-3"
               >
                 <EarningsHighlight
+                  fullHistoryLoaded={settings.fullHistoryLoaded}
                   currentBalance={currentBalance}
                   heldBalance={heldBalance}
                   approvedBalance={approvedBalance}
@@ -340,7 +350,11 @@ export default function App() {
                 transition={{ duration: 0.2, ease: 'easeOut' }}
                 className="space-y-3"
               >
-                {isLoading && dayIndex.length === 0 && !error ? loadingPanel : isEmpty ? emptyPanel : <ChartsSection stats={dayIndex} />}
+                {isLoading && dayIndex.length === 0 && !error ? loadingPanel : isEmpty ? emptyPanel : (
+                  <Suspense fallback={loadingPanel}>
+                    <ChartsSection stats={dayIndex} />
+                  </Suspense>
+                )}
               </motion.div>
             )}
 

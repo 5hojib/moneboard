@@ -72,18 +72,27 @@ export async function getStatistics(
   const { page = 1, page_size = 500, ...rest } = body;
   const payload = { page: Number(page), page_size: Math.min(Number(page_size), 500), ...rest };
 
-  return rawFetch(
-    `${MONETAG_BASE_URL}/pub/statistics`,
-    {
-      method: 'POST',
-      headers: {
-        ...SAFE_HEADERS,
-        'Authorization': `Bearer ${getApiKey()}`,
+  const attempt = () =>
+    rawFetch(
+      `${MONETAG_BASE_URL}/pub/statistics`,
+      {
+        method: 'POST',
+        headers: {
+          ...SAFE_HEADERS,
+          'Authorization': `Bearer ${getApiKey()}`,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    },
-    true
-  );
+      true
+    );
+
+  let res = await attempt();
+  // Retry once on network/timeout/5xx-style failures.
+  if (!res.ok && /timed out|Network request failed|status 5/i.test(res.error ?? '')) {
+    await new Promise(r => setTimeout(r, 500));
+    res = await attempt();
+  }
+  return res;
 }
 
 // Pages through every row in the range (page_size is capped at 500 by the

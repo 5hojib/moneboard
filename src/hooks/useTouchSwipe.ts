@@ -13,6 +13,13 @@ export function useTouchSwipe(onSwipe: (dir: 'left' | 'right') => void) {
 
   useEffect(() => {
     const touchStart = (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      // Don't hijack gestures that start inside a horizontally scrollable
+      // region (charts, daily table) — let them scroll/pan instead.
+      if (target && target.closest('[data-no-swipe], .overflow-x-auto, .overflow-x-scroll')) {
+        startRef.current = null;
+        return;
+      }
       startRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
 

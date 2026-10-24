@@ -419,6 +419,7 @@ export default function ChartsSection({ stats }: ChartsSectionProps) {
         onTouchMove={swallowTouch}
         onTouchEnd={swallowTouch}
         onTouchCancel={swallowTouch}
+        onMouseLeave={() => setActivePoint(null)}
         className="h-[240px] w-full select-none outline-none touch-none cursor-grab active:cursor-grabbing"
       >
         <ResponsiveContainer width="100%" height="100%">
