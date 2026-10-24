@@ -1,4 +1,4 @@
-import { formatCurrencyFixed, formatCompactNumber } from '../utils/formatters';
+import { formatCurrencyFixed, formatNumber } from '../utils/formatters';
 import { Odometer } from './Odometer';
 
 interface RecentDay {
@@ -79,7 +79,7 @@ export default function EarningsHighlight({
             <Odometer value={todayMoney} format={formatCurrencyFixed} replay={replay} />
           </p>
           <p className="mt-1.5 text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
-            {formatCurrencyFixed(todayCpm)} • {formatCompactNumber(todayImpressions)}
+            {formatCurrencyFixed(todayCpm)} • {formatNumber(todayImpressions)}
           </p>
         </div>
 
@@ -91,7 +91,7 @@ export default function EarningsHighlight({
                   <Odometer value={d.money} format={formatCurrencyFixed} replay={replay} />
                 </span>
                 <span className="text-[10px] font-mono text-slate-400 dark:text-neutral-500 tabular-nums">
-                  {formatCurrencyFixed(d.cpm)} • {formatCompactNumber(d.impressions)}
+                  {formatCurrencyFixed(d.cpm)} • {formatNumber(d.impressions)}
                 </span>
               </div>
             ))}
