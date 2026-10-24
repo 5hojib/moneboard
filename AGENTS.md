@@ -28,8 +28,8 @@ The app is published as a **sideloadable Android APK** via GitHub Releases. User
 
 ## Android signing
 
-- Release APK is signed with the committed release keystore at `android/keystore/release-keystore.p12` (credentials in `android/keystore/keystore.properties`). This is a dedicated release key so Play Protect does not treat the APK as debug-signed.
-- If the keystore/properties are missing, the build falls back to the debug key (`signingConfigs.debug`) so local builds still work.
+- Release APK is signed with a dedicated release keystore. The keystore and its credentials are stored as GitHub Secrets (`RELEASE_KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) and restored in CI; they are not committed to the repo.
+- If the keystore/properties are missing (e.g. a local build or a fork without secrets), the build falls back to the debug key (`signingConfigs.debug`) so local builds still work.
 
 ## Architecture notes
 

@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Android release signing (provided via GitHub Secrets in CI)
+android/keystore/release-keystore.p12
+android/keystore/keystore.properties

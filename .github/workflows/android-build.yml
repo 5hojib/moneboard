@@ -63,6 +63,28 @@ jobs:
           echo "release_tag=v$VER" >> "$GITHUB_OUTPUT"
           echo "apk_name=Monetag-Publisher-$VER.apk" >> "$GITHUB_OUTPUT"
 
+      - name: Restore release keystore from secrets (if available)
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            mkdir -p android/keystore
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > android/keystore/release-keystore.p12
+            cat > android/keystore/keystore.properties <<EOF
+storeFile=../keystore/release-keystore.p12
+storePassword=$KEYSTORE_PASSWORD
+storeType=PKCS12
+keyAlias=$KEY_ALIAS
+keyPassword=$KEY_PASSWORD
+EOF
+            echo "Release keystore restored from secrets."
+          else
+            echo "No release keystore secret found; build will fall back to debug signing."
+          fi
+
       - name: Build release APK (signed with the committed release keystore)
         working-directory: android
         run: |
