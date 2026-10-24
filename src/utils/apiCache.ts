@@ -122,6 +122,16 @@ export function mergeDayIndex(apiKey: string, incoming: StatItem[]): StatItem[] 
 }
 
 // The latest date known in the day index (or null when empty).
+export function clearDayIndex(apiKey: string): void {
+  const s = storage();
+  if (!s || !apiKey) return;
+  try {
+    s.removeItem(`${PREFIX}:${dayCacheKey(apiKey)}`);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function getNewestDay(apiKey: string): string | null {
   const rows = getDayIndex(apiKey);
   if (rows.length === 0) return null;

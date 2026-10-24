@@ -19,12 +19,14 @@ function SaveButton({ saved }: { saved: boolean }) {
 
 interface SettingsPageProps {
   onLoadAllData?: () => Promise<void>;
+  onClearCache?: () => void;
   loadAllLoading?: boolean;
   loadAllMessage?: string | null;
 }
 
 export default function SettingsPage({
   onLoadAllData,
+  onClearCache,
   loadAllLoading = false,
   loadAllMessage = null,
 }: SettingsPageProps) {
@@ -158,6 +160,15 @@ export default function SettingsPage({
               <RefreshCw className={`w-3.5 h-3.5 ${loadAllLoading ? 'animate-spin' : ''}`} />
               {loadAllLoading ? 'Loading…' : 'Load all data'}
             </button>
+            {onClearCache && (
+              <button
+                id="settings-clear-cache"
+                onClick={onClearCache}
+                className="px-3 py-1.5 rounded border border-slate-300 dark:border-neutral-700 text-slate-700 dark:text-neutral-200 text-xs font-medium cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-neutral-900"
+              >
+                Clear cache
+              </button>
+            )}
           </div>
         </div>
       </section>

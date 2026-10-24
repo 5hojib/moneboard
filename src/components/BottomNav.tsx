@@ -31,6 +31,8 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               id={`tab-${tab.id}`}
               type="button"
               onClick={() => onTabChange(tab.id)}
+              aria-label={tab.label}
+              aria-current={active ? 'page' : undefined}
               className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] leading-none transition-colors cursor-pointer select-none"
             >
               <span

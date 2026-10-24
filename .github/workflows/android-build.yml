@@ -73,13 +73,13 @@ jobs:
           if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
             mkdir -p android/keystore
             echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > android/keystore/release-keystore.p12
-            cat > android/keystore/keystore.properties <<EOF
-storeFile=../keystore/release-keystore.p12
-storePassword=$KEYSTORE_PASSWORD
-storeType=PKCS12
-keyAlias=$KEY_ALIAS
-keyPassword=$KEY_PASSWORD
-EOF
+            {
+              echo "storeFile=../keystore/release-keystore.p12"
+              echo "storePassword=$KEYSTORE_PASSWORD"
+              echo "storeType=PKCS12"
+              echo "keyAlias=$KEY_ALIAS"
+              echo "keyPassword=$KEY_PASSWORD"
+            } > android/keystore/keystore.properties
             echo "Release keystore restored from secrets."
           else
             echo "No release keystore secret found; build will fall back to debug signing."

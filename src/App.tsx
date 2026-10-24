@@ -21,7 +21,7 @@ import {
   getApiTodayISO,
 } from './utils/formatters';
 import { getAllStatistics } from './api/client';
-import { getDayIndex, mergeDayIndex } from './utils/apiCache';
+import { getDayIndex, mergeDayIndex, clearDayIndex } from './utils/apiCache';
 
 // How far back the app keeps an up-to-date rolling index without the user
 // explicitly running "Load all data". Anything older than this is preserved
@@ -256,6 +256,17 @@ export default function App() {
     }
   }, [hasKey, apiKey]);
 
+  const handleClearCache = useCallback(() => {
+    if (!hasKey) return;
+    clearDayIndex(apiKey);
+    setDayIndex([]);
+    setError(null);
+    setShowingCached(false);
+    setFullHistoryLoaded(false);
+    setLoadAllMessage('Cached data cleared.');
+    setReplayKey(k => k + 1);
+  }, [hasKey, apiKey, setFullHistoryLoaded]);
+
   const loadingPanel = (
     <div className="bg-white dark:bg-black rounded-2xl p-8 text-center text-xs text-slate-400 dark:text-neutral-500 font-mono">
       Loading analytics...
@@ -351,9 +362,16 @@ export default function App() {
                 className="space-y-3"
               >
                 {isLoading && dayIndex.length === 0 && !error ? loadingPanel : isEmpty ? emptyPanel : (
-                  <Suspense fallback={loadingPanel}>
-                    <ChartsSection stats={dayIndex} />
-                  </Suspense>
+                  <>
+                    {!settings.fullHistoryLoaded && (
+                      <p className="text-[10px] font-mono text-slate-400 dark:text-neutral-500">
+                        Showing cached days only — use “Load all data” in Settings for full history.
+                      </p>
+                    )}
+                    <Suspense fallback={loadingPanel}>
+                      <ChartsSection stats={dayIndex} />
+                    </Suspense>
+                  </>
                 )}
               </motion.div>
             )}
@@ -367,7 +385,14 @@ export default function App() {
                 transition={{ duration: 0.2, ease: 'easeOut' }}
                 className="space-y-3"
               >
-                <DailyStatsTable stats={dayIndex} />
+                <>
+                  {!settings.fullHistoryLoaded && (
+                    <p className="text-[10px] font-mono text-slate-400 dark:text-neutral-500">
+                      Showing cached days only — use “Load all data” in Settings for full history.
+                    </p>
+                  )}
+                  <DailyStatsTable stats={dayIndex} />
+                </>
               </motion.div>
             )}
 
@@ -381,6 +406,7 @@ export default function App() {
               >
                 <SettingsPage
                   onLoadAllData={handleLoadAllData}
+                  onClearCache={handleClearCache}
                   loadAllLoading={loadAllLoading}
                   loadAllMessage={loadAllMessage}
                 />

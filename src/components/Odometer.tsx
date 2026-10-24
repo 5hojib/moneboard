@@ -24,7 +24,7 @@ const DigitColumn: FC<DigitColumnProps> = ({ value, disabled, replay, durationSe
     const raf = rafRef.current;
     if (raf !== undefined) cancelAnimationFrame(raf);
 
-    if (disabled) {
+    if (disabled || (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       prevValueRef.current = value;
       setTransitioning(false);
       setDisplay(value);
