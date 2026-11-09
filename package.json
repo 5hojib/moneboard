@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "lint": "tsc --noEmit",
+    "build": "vite build --outDir dist/www",
     "build:android": "vite build --outDir dist/www",
     "android:sync": "npm run build:android && cap sync android",
     "android:apk": "npm run android:sync && cd android && ./gradlew assembleRelease",
