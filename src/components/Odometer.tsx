@@ -57,11 +57,11 @@ const DigitColumn: FC<DigitColumnProps> = ({ value, disabled, replay, durationSe
 
   return (
     <span
-      className="inline-block h-[1em] overflow-hidden align-baseline"
+      className="inline-block h-[1em] overflow-hidden align-baseline leading-none"
       style={{ width: '1ch' }}
     >
       <span
-        className="block"
+        className="block leading-none"
         style={{
           lineHeight: 1,
           transform: `translateY(-${display}em)`,
@@ -106,7 +106,7 @@ function OdometerBase({
   const str = format(value);
 
   return (
-    <span className={`inline-block tabular-nums ${className ?? ''}`}>
+    <span className={`inline-flex items-baseline tabular-nums ${className ?? ''}`}>
       {str.split('').map((ch, i) => {
         if (/[0-9]/.test(ch)) {
           return (
