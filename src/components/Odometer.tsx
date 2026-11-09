@@ -120,7 +120,7 @@ function OdometerBase({
           );
         }
         return (
-          <span key={i} className="inline-block">
+          <span key={i} className="inline-block align-baseline">
             {ch}
           </span>
         );
